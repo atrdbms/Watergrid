@@ -122,6 +122,26 @@ input[type=file]{font-size:14px;max-width:100%}
 #detail dl{display:grid;grid-template-columns:9em 1fr;gap:8px 12px;font-size:15px}
 #detail dt{color:var(--muted)}#detail dd{margin:0;overflow-wrap:anywhere}
 .ph{display:flex;justify-content:space-between;align-items:center;gap:12px}.ph h2{margin:0;font-size:22px}
+/* photos */
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.pc{all:unset;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;align-self:start;width:100%}
+.pc:focus-visible{outline:3px solid var(--water)}.pc:hover{border-color:var(--water)}
+.im{aspect-ratio:16/9;background:#26362c;display:grid;place-items:center;overflow:hidden}
+.im img{width:100%;height:100%;object-fit:cover;display:block}
+.noimg{color:#cfd8cf;font-size:13px;padding:8px;text-align:center}
+.pc .cap{padding:8px 10px;font-size:13px;line-height:1.4}.pc .cap b{font-size:14px}
+.pop .im{width:250px;margin:0 0 8px;border-radius:6px;cursor:pointer}
+.pmk img{width:56px;height:42px;object-fit:cover;border:2px solid #fff;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.6);display:block}
+#lb{position:fixed;inset:0;background:rgba(8,14,10,.88);display:none;z-index:3000;color:#f1f4ee}
+#lb.open{display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+#lb .top,#lb .bot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 14px}
+#lb .btn{background:rgba(255,255,255,.1);color:#f1f4ee;border-color:rgba(255,255,255,.35)}
+#lb .mid{display:grid;place-items:center;min-height:0;padding:0 10px}
+#lb .mid img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+#lb .mid .noimg{font-size:16px}
+#lb .bot{font-size:14px}
+.dphoto{margin:14px 0;border-radius:8px}
+.doc .gal{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.doc .pc{border-color:#ddd;background:#fff;break-inside:avoid}.doc .im{background:#eee}.doc .noimg{color:#555}
 /* printable report */
 .doc{background:#fff;color:#1b1f1c;max-width:1000px;margin:14px auto 0;padding:clamp(18px,4vw,48px);border:1px solid var(--line);border-radius:4px;color-scheme:light}
 .doc .dh{display:flex;gap:16px;align-items:center;border-bottom:3px solid #1f4a35;padding-bottom:12px}
@@ -191,7 +211,7 @@ input[type=file]{font-size:14px;max-width:100%}
  </svg>
 </header>
 <nav aria-label="Sections"><div class="max">
- <a href="#dashboard" data-v="dashboard">Dashboard</a><a href="#map" data-v="map">Map</a><a href="#reports" data-v="reports">Reports</a><a href="#detailed-report" data-v="detailed-report">Detailed report</a><a href="#records" data-v="records">Records</a>
+ <a href="#dashboard" data-v="dashboard">Dashboard</a><a href="#map" data-v="map">Map</a><a href="#photos" data-v="photos">Photos</a><a href="#reports" data-v="reports">Reports</a><a href="#detailed-report" data-v="detailed-report">Detailed report</a><a href="#records" data-v="records">Records</a>
 </div></nav>
 
 <section class="fbar" aria-label="Filter menu"><div class="max">
@@ -225,6 +245,7 @@ input[type=file]{font-size:14px;max-width:100%}
      <select id="colorBy"><option value="structure">Structure type</option><option value="zone">Core / buffer</option></select>
      <div class="legend" id="mlegend" style="margin:12px 0 4px"></div>
      <div class="sub" id="mcount"></div>
+     <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:10px"><input type="checkbox" id="photoMk" style="width:20px;height:20px"> Show photos on the map when zoomed in</label><div class="sub" id="photoMkNote"></div>
      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" id="fit" type="button">Zoom to structures</button></div>
     </div>
     <div class="card">
@@ -236,6 +257,11 @@ input[type=file]{font-size:14px;max-width:100%}
     </div>
    </div>
   </div>
+ </section>
+
+ <section class="view" id="v-photos" aria-label="Photos">
+  <div class="tbox"><div class="tools"><h2>Structure photos</h2><div class="g"><span class="sub" id="phCount"></span><label for="phSort" style="margin:0">Sort</label><select id="phSort"><option value="new">Newest photo first</option><option value="old">Oldest photo first</option><option value="id">By ID</option><option value="beat">By beat</option></select></div></div>
+  <div style="padding:14px"><p class="note" id="phNote" hidden></p><div class="gal" id="gal"></div></div><div class="pager" id="phPager" hidden></div></div>
  </section>
 
  <section class="view" id="v-reports" aria-label="Reports">
@@ -252,6 +278,7 @@ input[type=file]{font-size:14px;max-width:100%}
   <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">
    <button class="btn pri" id="print" type="button">Print / save as PDF</button>
    <label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" id="incList" checked style="width:20px;height:20px"> Include full list of structures</label>
+   <label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" id="incPh" style="width:20px;height:20px"> Include structure photos</label>
    <span class="sub" id="printMsg"></span>
   </div>
   <div class="doc" id="doc"></div>
@@ -267,6 +294,8 @@ input[type=file]{font-size:14px;max-width:100%}
  </section>
 </main>
 
+<div id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer"><div class="top"><b id="lbT"></b><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="lbOpen" target="_blank" rel="noopener">Open in Drive</a><button class="btn" id="lbRec" type="button">Full record</button><button class="btn" id="lbMap" type="button">Show on map</button><button class="btn" id="lbClose" type="button">Close</button></div></div>
+<div class="mid" id="lbImg"></div><div class="bot"><button class="btn" id="lbPrev" type="button">← Previous</button><span id="lbCap"></span><button class="btn" id="lbNext" type="button">Next →</button></div></div>
 <div id="detail" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="p"><div class="ph"><h2 id="dTitle">Record</h2><button class="btn" id="dClose" type="button">Close</button></div><dl id="dBody"></dl><div style="display:flex;gap:8px;margin-top:16px"><button class="btn" id="dMap" type="button">Show on map</button></div></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -304,6 +333,20 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 const norm = s => String(s ?? '').trim().replace(/\s+/g,' ').replace(/[.]+$/,'').toLowerCase();
 const hkey = s => String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
 const fmtN = n => n.toLocaleString('en-IN');
+/* photos: Drive files shared "anyone with the link"; the thumbnail address loads as an image, the sheet's uc?export=view link does not */
+const pid=r=>{const u=r.photoUrl||'';const m=u.match(/[?&]id=([\w-]+)/)||u.match(/\/d\/([\w-]+)/);return m?m[1]:'';};
+const thumb=(id,w)=>`https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
+const viewUrl=r=>{const id=pid(r);return id?`https://drive.google.com/file/d/${id}/view`:r.photoUrl;};
+let photoState='checking'; // checking | ok | blocked
+function pimg(r,w,eager){const id=pid(r);if(!id)return '<div class="noimg">No photo in sheet</div>';
+  if(photoState==='blocked')return '<div class="noimg">Photo shows on the hosted site</div>';
+  return `<img src="${thumb(id,w)}" data-alt="https://lh3.googleusercontent.com/d/${id}=w${w}" ${eager?'':'loading="lazy"'} alt="Photo of ${esc(r.structure)} ${esc(r.id)}">`;}
+document.addEventListener('error',e=>{const t=e.target;if(t.tagName!=='IMG')return;if(t.dataset.alt){t.src=t.dataset.alt;delete t.dataset.alt;return;}
+  if(t.closest('.im,#lbImg,.dphoto,.pmk')){const d=document.createElement('div');d.className='noimg';d.textContent='Photo could not load';t.replaceWith(d);}},true);
+function probePhotos(){const r=ALL.find(x=>pid(x));if(!r){photoState='blocked';return;}const i=new Image();const t=setTimeout(()=>done('blocked'),9000);
+  const done=st=>{clearTimeout(t);if(photoState!=='checking')return;photoState=st;render();};i.onload=()=>done('ok');i.onerror=()=>done('blocked');i.src=thumb(pid(r),100);}
+function card(r,w=400,eager){return `<button class="pc" type="button" data-ph="${esc(r.id)}"><div class="im">${pimg(r,w,eager)}</div><div class="cap"><b>${esc(r.structure)} · ${esc(r.id)}</b><br>${esc(r.beat)} beat · ${esc(r.range)}<br><span class="sub">${esc(r.date||'No photo date')}</span></div></button>`;}
+const blockedNote='Photos cannot be displayed in this claude.ai preview (it blocks images from other sites). They appear when the site is opened from its hosted web address. Each card still links to the photo on Google Drive.';
 
 let ALL=[], labels={}, sel={}, q='', geoSel=null, sort={k:'id',dir:1}, page=1, size=25, view=[], srcText='', cur='dashboard';
 let typeOrder=[], zoneOrder=[];
@@ -346,7 +389,7 @@ async function load(){
   const order=k=>{const c={};for(const r of ALL){const n=norm(r[k]);if(n)c[n]=(c[n]||0)+1;}return Object.keys(c).sort((a,b)=>c[b]-c[a]);};
   typeOrder=order('structure');zoneOrder=order('zone');
   for(const k in sel)if(!labels[k]||!(sel[k] in labels[k]))delete sel[k];
-  $('srcInfo').textContent=srcText;$('loadState').innerHTML='';render();
+  $('srcInfo').textContent=srcText;$('loadState').innerHTML='';render();if(photoState==='checking')probePhotos();
 }
 
 /* ---------- filtering ---------- */
@@ -373,7 +416,7 @@ function render(){
   if(!ALL.length)return;
   view=ALL.filter(r=>match(r));view.sort((a,b)=>cmp(a,b,sort.k)*sort.dir);
   renderFilters();renderChips();save();
-  ({dashboard:renderDash,map:renderMap,reports:renderReports,'detailed-report':renderDoc,records:renderTable})[cur]();
+  ({dashboard:renderDash,map:renderMap,photos:renderPhotos,reports:renderReports,'detailed-report':renderDoc,records:renderTable})[cur]();
 }
 
 /* ---------- chart helpers (HTML) ---------- */
@@ -423,7 +466,9 @@ function renderDash(){
   <div class="card"><h3>Photos taken per month <small>· from photo date</small></h3>${columns(byPhotoMonth(view))}</div>
   <div class="card"><h3>Structures by division</h3>${hbars('division',view)}</div>
   <div class="card"><h3>Structures by scheme</h3>${hbars('scheme',view,{stack:'structure'})}</div>
-  <div class="card w12"><h3>Top 15 beats <small>· by number of structures</small></h3>${hbars('beat',view,{limit:15})}</div>`;
+  <div class="card w12"><h3>Top 15 beats <small>· by number of structures</small></h3>${hbars('beat',view,{limit:15})}</div>
+  <div class="card w12"><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Latest structure photos <small>· ${ph} photos in the current selection</small></h3><a class="btn" href="#photos">View all ${ph} photos</a></div>
+   ${photoState==='blocked'?`<p class="note">${blockedNote}</p>`:''}<div class="gal">${view.filter(r=>pid(r)).sort((a,b)=>b._t-a._t).slice(0,12).map(r=>card(r)).join('')}</div></div>`;
 }
 
 /* ---------- reports ---------- */
@@ -462,9 +507,37 @@ function renderDoc(){
   $('doc').innerHTML=`<div class="dh"><img src="${document.querySelector('.brand img').src}" alt=""><img class="atr" src="${document.querySelector('.brand img.atr').src}" alt=""><div><h2>Amrabad Tiger Reserve</h2><div style="font-size:17px">Watergrid structures report</div></div></div>
    <div class="meta">Prepared ${esc(now)} · Source: Google Sheet “watergrid”, tab “${esc(CONFIG.sheetName)}” (${esc(srcText)})<br>Filters: ${fl.length?esc(fl.join(' · ')):'none (all records)'}</div>
    ${view.length?`<div class="kpis"><div>Structures<b>${fmtN(view.length)}</b></div>${typeOrder.filter(n=>ct[n]).map(n=>`<div>${esc(lab('structure',n))}<b>${ct[n]}</b></div>`).join('')}<div>Ranges / beats<b>${d('range')} / ${d('beat')}</b></div><div>Compartments<b>${d('compt')}</b></div></div>
-   ${sec('By division','division')}${sec('By range','range')}${sec('By section','section')}${sec('By year (sheet “Year”)','year')}${sec('By month of photo','month')}${sec('By scheme','scheme')}${kmlLayers.some(l=>l.visible&&l.polys.length)?sec('By KML area','kml'):''}${list}`:'<p><b>No structures match the selected filters.</b></p>'}
+   ${sec('By division','division')}${sec('By range','range')}${sec('By section','section')}${sec('By year (sheet “Year”)','year')}${sec('By month of photo','month')}${sec('By scheme','scheme')}${kmlLayers.some(l=>l.visible&&l.polys.length)?sec('By KML area','kml'):''}${list}${$('incPh').checked?`<h3>Structure photos (${view.filter(r=>pid(r)).length})</h3>${photoState==='blocked'?`<p class="meta">${blockedNote}</p>`:'<p class="meta">Let all photos finish loading before printing.</p>'}<div class="gal">${view.filter(r=>pid(r)).map(r=>card(r,300,true)).join('')}</div>`:''}`:'<p><b>No structures match the selected filters.</b></p>'}
    <p class="meta">Counts are calculated from the records in the sheet. Spelling variants of the same name are counted together. Month is taken from the photo date.</p>`;
 }
+
+/* ---------- photo gallery & viewer ---------- */
+let phPage=1,phList=[],lbI=0;const PH_SIZE=48;
+function photoRows(){const k=$('phSort').value;const rs=view.filter(r=>pid(r));
+  return rs.sort(k==='new'?(a,b)=>b._t-a._t:k==='old'?(a,b)=>a._t-b._t:k==='beat'?(a,b)=>a.beat.localeCompare(b.beat)||a._t-b._t:(a,b)=>cmp(a,b,'id'));}
+function renderPhotos(){
+  const rs=photoRows();const pages=Math.max(1,Math.ceil(rs.length/PH_SIZE));phPage=Math.min(phPage,pages);
+  $('phCount').textContent=`${fmtN(rs.length)} photos for ${fmtN(view.length)} structures`;
+  $('phNote').hidden=photoState!=='blocked';$('phNote').textContent=blockedNote;
+  $('gal').innerHTML=rs.length?rs.slice((phPage-1)*PH_SIZE,phPage*PH_SIZE).map(r=>card(r)).join(''):'<div class="state"><strong>No photos for these filters</strong>Remove a filter or press Reset filters.</div>';
+  const p=$('phPager');p.hidden=pages<2;p.innerHTML=`<span class="sub">Showing ${Math.min(rs.length,(phPage-1)*PH_SIZE+1)}–${Math.min(rs.length,phPage*PH_SIZE)}</span><div class="g"><button class="btn" type="button" data-pp="-1"${phPage<=1?' disabled':''}>Previous</button><span>Page ${phPage} of ${pages}</span><button class="btn" type="button" data-pp="1"${phPage>=pages?' disabled':''}>Next</button></div>`;
+}
+function openLB(id){phList=(cur==='photos'?photoRows():view.filter(r=>pid(r)).sort((a,b)=>b._t-a._t));lbI=Math.max(0,phList.findIndex(r=>r.id===id));
+  if(!phList.length){const r=ALL.find(x=>x.id===id);if(!r)return;phList=[r];lbI=0;}showLB();$('lb').classList.add('open');$('lbClose').focus();}
+function showLB(){const r=phList[lbI];$('lbT').textContent=`${r.structure} · ID ${r.id}`;
+  $('lbImg').innerHTML=pimg(r,1600,true);$('lbOpen').href=viewUrl(r);$('lbMap').hidden=!r._geo;
+  $('lbCap').textContent=`${r.division} › ${r.range} › ${r.section} › ${r.beat} · Compt. ${r.compt} · Year ${r.year} · Photo ${r.date||'—'} · ${r.zone}  (${lbI+1} of ${phList.length})`;
+  $('lbPrev').disabled=lbI<=0;$('lbNext').disabled=lbI>=phList.length-1;}
+const closeLB=()=>$('lb').classList.remove('open');
+$('lbPrev').addEventListener('click',()=>{if(lbI>0){lbI--;showLB();}});
+$('lbNext').addEventListener('click',()=>{if(lbI<phList.length-1){lbI++;showLB();}});
+$('lbClose').addEventListener('click',closeLB);
+$('lbRec').addEventListener('click',()=>{const r=phList[lbI];closeLB();openDetail(r.id);});
+$('lbMap').addEventListener('click',()=>{curDetail=phList[lbI];closeLB();$('dMap').click();});
+document.addEventListener('keydown',e=>{if(!$('lb').classList.contains('open'))return;if(e.key==='ArrowLeft')$('lbPrev').click();if(e.key==='ArrowRight')$('lbNext').click();if(e.key==='Escape')closeLB();});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-ph]');if(b){e.preventDefault();e.stopPropagation();openLB(b.dataset.ph);}},true);
+$('phPager').addEventListener('click',e=>{const b=e.target.closest('[data-pp]');if(!b)return;phPage+=+b.dataset.pp;renderPhotos();$('v-photos').scrollIntoView({block:'start'});});
+$('phSort').addEventListener('change',()=>{phPage=1;renderPhotos();});
 
 /* ---------- records table ---------- */
 const cmp=(a,b,k)=>{if(k==='date')return a._t-b._t;const x=a[k],y=b[k];
@@ -482,14 +555,14 @@ function renderTable(){
 let curDetail=null;
 function openDetail(id){const r=ALL.find(x=>x.id===id);if(!r)return;curDetail=r;
   $('dTitle').textContent=`Record ${r.id} · ${r.structure}`;
-  $('dBody').innerHTML=COLS.map(([k])=>{let v=r[k]?esc(r[k]):'<span class="sub">—</span>';
-    if(k==='photoUrl'&&/^https?:\/\//.test(r[k]))v=`<a href="${esc(r[k])}" target="_blank" rel="noopener">Open photo</a>`;
+  $('dBody').innerHTML=(pid(r)?`<dd style="grid-column:1/-1"><button class="pc dphoto" type="button" data-ph="${esc(r.id)}" style="width:100%"><div class="im">${pimg(r,800,true)}</div></button></dd>`:'')+COLS.map(([k])=>{let v=r[k]?esc(r[k]):'<span class="sub">—</span>';
+    if(k==='photoUrl'&&/^https?:\/\//.test(r[k]))v=`<a href="${esc(viewUrl(r))}" target="_blank" rel="noopener">Open photo in Drive</a>`;
     if(k==='lng'&&r._geo)v+=` · <a href="https://www.google.com/maps?q=${r._geo[0]},${r._geo[1]}&t=k" target="_blank" rel="noopener">Google Maps</a>`;
     return `<dt>${esc(LABEL[k])}</dt><dd>${v}</dd>`;}).join('')+(!r._geo?'<dt>Note</dt><dd>Latitude/longitude missing or not valid, so this record is not on the map.</dd>':'');
   $('dMap').hidden=!r._geo;$('detail').classList.add('open');$('dClose').focus();}
 
 /* ---------- map ---------- */
-let map=null,ptLayer=null,bases={},baseCur=null,tileFail=0,tileOk=0,fitPending=true,mkById={};
+let map=null,ptLayer=null,phLayer=null,bases={},baseCur=null,tileFail=0,tileOk=0,fitPending=true,mkById={};
 const kmlLayers=[];let kmlSeq=0;
 function initMap(){
   if(map)return true;
@@ -503,7 +576,7 @@ function initMap(){
   bases.osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'});
   bases.none=L.layerGroup();
   for(const b of Object.values(bases))(b.eachLayer?b.eachLayer(l=>watch(l)):watch(b));
-  ptLayer=L.layerGroup().addTo(map);
+  ptLayer=L.layerGroup().addTo(map);phLayer=L.layerGroup().addTo(map);map.on('moveend',drawPhotoMarkers);
   setBase($('base').value);
   return true;
 }
@@ -524,10 +597,10 @@ function loadGoogle(){
   s1.onerror=()=>{mapMsg('Google Maps could not load (check the API key and internet). Showing Esri satellite.');$('base').value='esri';setBase('esri');};
   document.head.appendChild(s1);
 }
-function popup(r){return `<div class="pop"><h4>${esc(r.structure)} · ID ${esc(r.id)}</h4>
+function popup(r){return `<div class="pop">${pid(r)?`<div class="im" data-ph="${esc(r.id)}" title="Open photo viewer">${pimg(r,500,true)}</div>`:''}<h4>${esc(r.structure)} · ID ${esc(r.id)}</h4>
   <b>Division</b>${esc(r.division)}<br><b>Range</b>${esc(r.range)}<br><b>Section</b>${esc(r.section)}<br><b>Beat</b>${esc(r.beat)}<br><b>Compt. No</b>${esc(r.compt)}<br>
   ${r.location?`<b>Location</b>${esc(r.location)}<br>`:''}<b>Year</b>${esc(r.year)}<br><b>Photo date</b>${esc(r.date)}<br><b>Core/buffer</b>${esc(r.zone)}<br>
-  ${/^https?:/.test(r.photoUrl)?`<a href="${esc(r.photoUrl)}" target="_blank" rel="noopener">Open photo</a> · `:''}<a href="#" data-rec="${esc(r.id)}">Full record</a></div>`;}
+  ${pid(r)?`<a href="#" data-ph="${esc(r.id)}">Larger photo</a> · `:''}<a href="#" data-rec="${esc(r.id)}">Full record</a></div>`;}
 function renderMap(){
   if(!initMap())return;
   setTimeout(()=>map.invalidateSize(),0);
@@ -535,13 +608,23 @@ function renderMap(){
   const col=r=>MC[Math.min(Math.max(ord.indexOf(norm(r[by])),0),MC.length-1)];
   ptLayer.clearLayers();mkById={};const pts=[];
   for(const r of view){if(!r._geo)continue;pts.push(r._geo);
-    const m=L.circleMarker(r._geo,{radius:6,color:'#10231a',weight:1.5,fillColor:col(r),fillOpacity:.95}).bindPopup(()=>popup(r),{maxWidth:280}).bindTooltip(`${r.structure} · ${r.id}`);
+    const m=L.circleMarker(r._geo,{radius:6,color:'#10231a',weight:1.5,fillColor:col(r),fillOpacity:.95}).bindPopup(()=>popup(r),{maxWidth:290,minWidth:250}).bindTooltip(`${r.structure} · ${r.id}`);
     m.addTo(ptLayer);mkById[r.id]=m;}
   $('mlegend').innerHTML=ord.map((n,i)=>{const c=count(view,by)[n]||0;return `<span><i class="sw" style="background:${MC[Math.min(i,MC.length-1)]};border:1px solid #10231a;border-radius:50%"></i>${esc(lab(by,n))} (${c})</span>`;}).join('');
   const off=view.length-pts.length;
   $('mcount').innerHTML=`${fmtN(pts.length)} structures on the map${off?` · <b>${off}</b> not shown (location missing or not valid: ${view.filter(r=>!r._geo).slice(0,6).map(r=>`<a href="#" data-rec="${esc(r.id)}">${esc(r.id)}</a>`).join(', ')}${off>6?'…':''})`:''}`;
   if(fitPending&&pts.length){map.fitBounds(pts,{padding:[30,30],maxZoom:15});fitPending=false;}
-  renderKmlList();
+  drawPhotoMarkers();renderKmlList();
+}
+function drawPhotoMarkers(){
+  if(!map)return;phLayer.clearLayers();const on=$('photoMk').checked;const z=map.getZoom();
+  $('photoMk').disabled=photoState==='blocked';
+  if(photoState==='blocked'){$('photoMkNote').textContent='Photos cannot display in this preview; they show on the hosted site.';return;}
+  if(!on){$('photoMkNote').textContent='';return;}
+  if(z<13){$('photoMkNote').textContent='Zoom in closer to see photos (they appear from zoom level 13).';return;}
+  const b=map.getBounds();const rs=view.filter(r=>r._geo&&pid(r)&&b.contains(r._geo));const shown=rs.slice(0,150);
+  $('photoMkNote').textContent=`${shown.length} photos shown in this area${rs.length>150?` (first 150 of ${rs.length}; zoom in for the rest)`:''}.`;
+  for(const r of shown)L.marker(r._geo,{icon:L.divIcon({className:'pmk',html:pimg(r,120),iconSize:[56,42],iconAnchor:[28,50]}),title:`${r.structure} ${r.id}`}).bindPopup(()=>popup(r),{maxWidth:290,minWidth:250,offset:[0,-40]}).addTo(phLayer);
 }
 
 /* ---------- KML / KMZ ---------- */
@@ -593,7 +676,7 @@ $('klist').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 $('kml').addEventListener('change',e=>{kmlErr='';addKml([...e.target.files]);});
 
 /* ---------- navigation & events ---------- */
-function show(v){if(!['dashboard','map','reports','detailed-report','records'].includes(v))v='dashboard';cur=v;
+function show(v){if(!['dashboard','map','photos','reports','detailed-report','records'].includes(v))v='dashboard';cur=v;
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
   document.querySelectorAll('nav a').forEach(a=>{if(a.dataset.v===v)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   render();}
@@ -612,14 +695,14 @@ $('pager').addEventListener('click',e=>{const b=e.target.closest('[data-pg]');if
 $('pager').addEventListener('change',e=>{if(e.target.id==='psize'){size=+e.target.value;page=1;renderTable();save();}});
 $('detail').addEventListener('click',e=>{if(e.target.id==='detail'||e.target.id==='dClose')$('detail').classList.remove('open');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('detail').classList.remove('open');});
-document.addEventListener('click',e=>{const a=e.target.closest('a[data-rec]');if(a){e.preventDefault();openDetail(a.dataset.rec);}});
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-rec]');if(a){e.preventDefault();e.stopPropagation();openDetail(a.dataset.rec);}},true);
 $('dMap').addEventListener('click',()=>{const r=curDetail;$('detail').classList.remove('open');if(location.hash!=='#map')location.hash='map';
   setTimeout(()=>{if(!map)return;map.setView(r._geo,16);const m=mkById[r.id];m?m.openPopup():L.popup().setLatLng(r._geo).setContent(popup(r)).openOn(map);},120);});
 $('base').addEventListener('change',e=>setBase(e.target.value));
-$('colorBy').addEventListener('change',renderMap);
+$('colorBy').addEventListener('change',renderMap);$('photoMk').addEventListener('change',drawPhotoMarkers);
 $('fit').addEventListener('click',()=>{fitPending=true;renderMap();});
 $('groupBy').addEventListener('change',renderReports);
-$('incList').addEventListener('change',renderDoc);
+$('incList').addEventListener('change',renderDoc);$('incPh').addEventListener('change',renderDoc);
 $('reload').addEventListener('click',load);
 $('print').addEventListener('click',()=>{try{window.print();$('printMsg').textContent='If no print window opened, use your browser’s menu (Print) or open the hosted site.';}catch(e){$('printMsg').textContent='Printing is blocked here — open the hosted site to print.';}});
 const copy=async(text,el,n)=>{if(!text){el.textContent='Nothing to copy';return;}try{await navigator.clipboard.writeText(text);el.textContent=`Copied ${n} rows — paste into a spreadsheet`;}catch(e){el.textContent='Copy was blocked by the browser';}};
