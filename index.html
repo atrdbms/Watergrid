@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amrabad Tiger Reserve – Watergrid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* VOICE: practical field-office register; plain words, calm, dense but legible.
+   IDEA: a forest department register ledger — filters as the index tabs, rows as entries.
+   PICTURE: the working filter panel + records table; a thin hill-and-water silhouette in the header.
+   COLOUR and TYPE: deep forest green ground for header, warm stone page, water teal accent; Public Sans.
+   LAYOUT: header band; sidebar filters (stacked drawer on mobile); summary row; table with pagination. */
+:root{color-scheme:light dark;
+--bg:light-dark(#f3efe6,#141a16);--panel:light-dark(#fffdf8,#1c241f);--ink:light-dark(#1d2620,#e8ebe5);
+--muted:light-dark(#5b6459,#a7b0a5);--line:light-dark(#ddd6c7,#2f3a33);--forest:light-dark(#1f4a35,#2c5e45);
+--forest-ink:#f1f4ee;--water:light-dark(#1f6f82,#6cc2d3);--water-soft:light-dark(#dcecef,#1f3a40);
+--chip:light-dark(#e6efe8,#24362b);--warn:light-dark(#8a3b12,#f0a37a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Public Sans",system-ui,sans-serif;overflow-x:clip}
+a{color:var(--water)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+header{background:var(--forest);color:var(--forest-ink);position:relative;overflow:hidden}
+header .in{max-width:1400px;margin:0 auto;padding:22px max(4vw,16px) 46px;position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between}
+h1{margin:0;font-size:clamp(26px,4vw,40px);line-height:1.05;font-weight:700;text-wrap:balance}
+header p{margin:4px 0 0;font-size:18px;opacity:.9}
+header svg{position:absolute;left:0;right:0;bottom:0;width:100%;height:60px}
+.src{font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.src span{background:rgba(255,255,255,.12);padding:6px 10px;border-radius:6px}
+.btn{min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--water)}
+header .btn{background:transparent;color:var(--forest-ink);border-color:rgba(255,255,255,.45)}
+.wrap{max-width:1400px;margin:0 auto;padding:20px max(4vw,16px) 48px;display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;align-items:start}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+aside h2{font-size:18px;margin:0}
+.ahead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+select,input[type=search]{width:100%;min-height:44px;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+select.on{border-color:var(--water);background:var(--water-soft)}
+.reset{width:100%;margin-top:16px}
+.ftoggle{display:none}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+.count{font-size:20px;font-weight:700;margin-right:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 12px;font-size:14px}
+.chip button{border:0;background:none;cursor:pointer;width:28px;height:28px;border-radius:50%;font-size:16px;line-height:1}
+.chip button:hover{background:var(--line)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.card h3{margin:0 0 8px;font-size:14px;font-weight:600;color:var(--muted)}
+.big{font-size:clamp(30px,4vw,40px);font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.sub{font-size:14px;color:var(--muted)}
+.rows{display:grid;gap:6px}
+.r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;font-size:14px}
+.r b{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.r i{grid-column:1/-1;height:6px;border-radius:3px;background:var(--water-soft);overflow:hidden}
+.r i::after{content:"";display:block;height:100%;width:var(--w);background:var(--water)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}.kv b{text-align:right;font-variant-numeric:tabular-nums}
+.tbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tools{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.tools h2{margin:0;font-size:18px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel);font-size:14px}
+th button{all:unset;cursor:pointer;font-weight:700;display:inline-flex;gap:4px;align-items:center;min-height:32px}
+th button:focus-visible{outline:3px solid var(--water)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--water-soft)}
+.tag{font-size:13px;padding:2px 8px;border-radius:999px;background:var(--chip)}
+.pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 14px}
+.pager .g{display:flex;gap:8px;align-items:center}
+.pager select{width:auto}
+.state{padding:40px 20px;text-align:center;color:var(--muted)}
+.state strong{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+.state.err strong{color:var(--warn)}
+.spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--water);border-radius:50%;margin:0 auto 12px;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+#detail{position:fixed;inset:0;background:rgba(10,20,14,.45);display:none;justify-content:flex-end;z-index:10}
+#detail.open{display:flex}
+#detail .p{background:var(--panel);width:min(460px,100%);height:100%;overflow:auto;padding:20px}
+#detail dl{display:grid;grid-template-columns:9em 1fr;gap:8px 12px;font-size:15px}
+#detail dt{color:var(--muted)}#detail dd{margin:0;overflow-wrap:anywhere}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.ph h2{margin:0;font-size:22px}
+#msg{font-size:14px;color:var(--muted)}
+@media(max-width:900px){
+ .wrap{grid-template-columns:minmax(0,1fr)}
+ aside{position:static;max-height:none;display:none}aside.open{display:block}
+ .ftoggle{display:inline-flex;align-items:center;width:100%;justify-content:center;margin-bottom:12px}
+ .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+}
+@media(max-width:600px){table{font-size:14px}th,td{padding:8px}
+ .stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 12px;padding-inline-start:8.5em;text-align:start;white-space:normal}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-7.5em;color:var(--muted);font-size:13px}.stack td:empty{display:none}#detail dl{grid-template-columns:7em 1fr}}
+</style>
+</head>
+<body>
+<header>
+ <div class="in">
+  <div><h1>Amrabad Tiger Reserve</h1><p>Watergrid Management</p></div>
+  <div class="src"><span id="srcInfo">Loading records…</span><button class="btn" id="reload" type="button">Reload data</button></div>
+ </div>
+ <svg viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 40 L90 22 L170 34 L260 12 L360 30 L450 18 L560 36 L650 14 L760 32 L860 20 L960 34 L1060 16 L1200 30 V60 H0Z" fill="rgba(255,255,255,.08)"/>
+  <path d="M0 48 L120 34 L230 44 L340 30 L470 46 L590 32 L720 46 L840 34 L980 46 L1100 36 L1200 44 V60 H0Z" fill="rgba(255,255,255,.12)"/>
+  <path d="M0 54 Q150 50 300 54 T600 54 T900 54 T1200 54 V60 H0Z" fill="var(--bg)"/>
+ </svg>
+</header>
+
+<div class="wrap">
+ <div>
+  <button class="btn ftoggle" id="ftoggle" type="button" aria-controls="filters" aria-expanded="false">Show filters</button>
+  <aside id="filters" aria-label="Filters">
+   <div class="ahead"><h2>Filters</h2><span class="sub" id="activeN"></span></div>
+   <label for="q">Search ID or location</label>
+   <input type="search" id="q" placeholder="e.g. 1012 or Rekularam" autocomplete="off">
+   <div class="fgrid" id="fsel"></div>
+   <button class="btn reset" id="reset" type="button">Reset filters</button>
+   <p class="note">Each list only shows choices that still have matching records; numbers in brackets are record counts. Month is taken from the photo date. Spelling variants (e.g. “Solar borewell” / “Solar Borewell”) are grouped together.</p>
+  </aside>
+ </div>
+
+ <main>
+  <div class="bar" aria-live="polite"><span class="count" id="count">–</span><span id="chips"></span></div>
+  <section class="cards" id="cards" aria-label="Summary of matching records"></section>
+  <section class="tbox" aria-label="Records">
+   <div class="tools"><h2>Records</h2><div class="g" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="msg"></span><button class="btn" id="copy" type="button">Copy as CSV</button></div></div>
+   <div id="tbl"><div class="state"><div class="spin"></div><strong>Loading records</strong>Connecting to the Google Sheet…</div></div>
+   <div class="pager" id="pager" hidden></div>
+  </section>
+  <p class="note">Click a row to see all fields, the photo link and map location. Values are shown exactly as entered in the sheet.</p>
+ </main>
+</div>
+
+<div id="detail" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="p"><div class="ph"><h2 id="dTitle">Record</h2><button class="btn" id="dClose" type="button">Close</button></div><dl id="dBody"></dl></div></div>
+
+<script>
+{
+/* ===== Data connection — edit here ===== */
+const CONFIG = {
+  sheetId: '1iV5L_I9GhqzINmQOFl_37LfdYpGsT3vhjuel3HTDeQE',
+  sheetName: 'artificial',
+  // Live CSV source. Sheet must be viewable by "Anyone with the link".
+  // Alternative: File > Share > Publish to web > CSV, and paste that URL here.
+  liveUrl: null,
+  snapshotUrl: 'data.json',   // copy of the sheet saved beside this page, used if live access fails
+  timeoutMs: 10000
+};
+const liveUrl = CONFIG.liveUrl || `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(CONFIG.sheetName)}`;
+
+/* Sheet column -> field. Matched ignoring case, spaces and punctuation. */
+const COLS = [
+ ['id','ID_No','ID',['idno','id']],['division','DIVISION','Division'],['range','RANGE','Range'],['section','SECTION','Section'],
+ ['beat','BEAT','Beat'],['compt','COMP_N0','Compt. No',['compn0','compno','comptno']],['location','Location','Location'],
+ ['scheme','Scheme','Scheme'],['year','Year','Year'],['structure','STRUCTURE','Structure'],['lat','Latitude','Latitude'],
+ ['lng','Longitude','Longitude'],['photo','Photo','Photo file'],['photoUrl','photo_URL','Photo link',['photourl']],
+ ['date','Picture taken date','Photo date',['picturetakendate']],['time','Time','Photo time'],
+ ['days','Days not filled','Days not filled',['daysnotfilled']],['grid','Grid_ID','Grid ID',['gridid']],
+ ['zone','Core_buffer','Core / buffer',['corebuffer']],['remarks','Remarks','Remarks']];
+const LABEL = Object.fromEntries(COLS.map(c=>[c[0],c[2]]));
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const FILTERS = [['year','Year'],['month','Month'],['division','Division'],['range','Range'],['section','Section'],['beat','Beat'],['compt','Compt. No'],['structure','Structure'],['zone','core_buffer']];
+const TABLE = [['id','ID','n'],['structure','Structure'],['division','Division'],['range','Range'],['section','Section'],['beat','Beat'],['compt','Compt. No','n'],['year','Year','n'],['date','Photo date'],['zone','Core / buffer'],['scheme','Scheme']];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').trim().replace(/\s+/g,' ').replace(/[.]+$/,'').toLowerCase();
+const hkey = s => String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+
+let ALL = [], labels = {}, sel = {}, q = '', sort = {k:'id',dir:1}, page = 1, size = 25, view = [];
+try { const s = JSON.parse(localStorage.getItem('atr-wg') || '{}'); sel = s.sel || {}; size = s.size || 25; } catch(e) {}
+const save = () => { try { localStorage.setItem('atr-wg', JSON.stringify({sel,size})); } catch(e) {} };
+
+function parseCSV(t){
+  const rows=[];let row=[],f='',i=0,qd=false;
+  for(;i<t.length;i++){const c=t[i];
+    if(qd){ if(c=='"'){ if(t[i+1]=='"'){f+='"';i++;} else qd=false; } else f+=c; }
+    else if(c=='"') qd=true; else if(c==','){row.push(f);f='';}
+    else if(c=='\n'||c=='\r'){ if(c=='\r'&&t[i+1]=='\n')i++; row.push(f);rows.push(row);row=[];f=''; }
+    else f+=c; }
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+function parseDate(s){
+  s=String(s||'').trim(); let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if(m) return {d:+m[1],m:+m[2],y:+m[3]};
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if(m) return {d:+m[3],m:+m[2],y:+m[1]};
+  return null;
+}
+function toRecords(header,rows){
+  const idx={}; header.forEach((h,i)=>idx[hkey(h)]=i);
+  const map=COLS.map(c=>{const keys=[hkey(c[1]),...(c[3]||[])];const k=keys.find(k=>k in idx);return [c[0], k===undefined?-1:idx[k]];});
+  const missing=map.filter(m=>m[1]<0&&['division','range','section','beat','structure','year'].includes(m[0])).map(m=>LABEL[m[0]]);
+  if(missing.length) throw new Error('Sheet is missing expected columns: '+missing.join(', '));
+  return rows.filter(r=>r.some(c=>String(c).trim())).map(r=>{
+    const o={}; map.forEach(([k,i])=>o[k]=i<0?'':String(r[i]??'').trim());
+    const d=parseDate(o.date); o._d=d; o.month=d&&d.m>=1&&d.m<=12?MONTHS[d.m-1]:''; o._t=d?d.y*10000+d.m*100+d.d:0;
+    return o; });
+}
+async function load(){
+  $('srcInfo').textContent='Loading records…';
+  $('tbl').innerHTML='<div class="state"><div class="spin"></div><strong>Loading records</strong>Connecting to the Google Sheet…</div>';
+  $('pager').hidden=true;
+  let recs, info, liveErr;
+  try{
+    const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(),CONFIG.timeoutMs);
+    const r=await fetch(liveUrl,{signal:ctl.signal}); clearTimeout(tm);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const t=await r.text(); if(/^\s*</.test(t)) throw new Error('Sheet is not shared publicly');
+    const g=parseCSV(t); recs=toRecords(g[0],g.slice(1));
+    info=`Live from Google Sheet · loaded ${new Date().toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}`;
+  }catch(e){ liveErr=e;
+    try{ const r=await fetch(CONFIG.snapshotUrl); if(!r.ok) throw new Error('HTTP '+r.status);
+      const j=await r.json(); recs=toRecords(j.header,j.rows);
+      info=`Saved copy of the sheet from ${new Date(j.taken).toLocaleDateString('en-IN',{dateStyle:'medium'})} · live connection not available here`;
+    }catch(e2){
+      $('srcInfo').textContent='Data could not be loaded';
+      $('tbl').innerHTML=`<div class="state err"><strong>Records could not be loaded</strong>The Google Sheet could not be reached (${esc(liveErr.message)}) and no saved copy was found.<br>Check that the sheet is shared as “Anyone with the link can view”, then press Reload data.</div>`;
+      $('cards').innerHTML=''; $('count').textContent='–'; return; }
+  }
+  ALL=recs; labels={};
+  for(const [k] of FILTERS){ const tally={}; for(const r of ALL){ const v=r[k]; if(!v) continue; const n=norm(v); (tally[n] ||= {})[v]=(tally[n][v]||0)+1; }
+    labels[k]=Object.fromEntries(Object.entries(tally).map(([n,vs])=>[n,Object.entries(vs).sort((a,b)=>b[1]-a[1])[0][0]])); }
+  for(const k in sel) if(!labels[k]||!(sel[k] in labels[k])) delete sel[k];
+  $('srcInfo').textContent=`${info}`; render();
+}
+
+const match = (r,skip) => FILTERS.every(([k])=>k===skip||!sel[k]||norm(r[k])===sel[k]) &&
+  (!q || r.id.toLowerCase().includes(q) || r.location.toLowerCase().includes(q));
+const optSort = (k,a,b) => k==='month' ? MONTHS.indexOf(labels.month[a])-MONTHS.indexOf(labels.month[b])
+  : (['year','compt'].includes(k) && !isNaN(a) && !isNaN(b)) ? (k==='year'?b-a:a-b) : labels[k][a].localeCompare(labels[k][b]);
+
+function renderFilters(){
+  const focus=document.activeElement?.id;
+  $('fsel').innerHTML=FILTERS.map(([k,l])=>{
+    const c={}; for(const r of ALL) if(r[k]&&match(r,k)){const n=norm(r[k]);c[n]=(c[n]||0)+1;}
+    if(sel[k]&&!(sel[k] in c)) c[sel[k]]=0;
+    const keys=Object.keys(c).sort((a,b)=>optSort(k,a,b));
+    return `<div><label for="f-${k}">${esc(l)}</label><select id="f-${k}" data-k="${k}" class="${sel[k]?'on':''}"><option value="">All</option>${keys.map(n=>`<option value="${esc(n)}"${sel[k]===n?' selected':''}>${esc(labels[k][n])} (${c[n]})</option>`).join('')}</select></div>`;
+  }).join('');
+  if(focus&&$(focus)&&focus!=='q') $(focus).focus();
+  const n=Object.keys(sel).length+(q?1:0); $('activeN').textContent=n?`${n} active`:'';
+  $('ftoggle').textContent=$('filters').classList.contains('open')?'Hide filters':`Show filters${n?` (${n} active)`:''}`;
+}
+function renderChips(){
+  const c=FILTERS.filter(([k])=>sel[k]).map(([k,l])=>`<span class="chip">${esc(l)}: <b>${esc(labels[k][sel[k]])}</b><button type="button" data-clear="${k}" aria-label="Remove ${esc(l)} filter">×</button></span>`);
+  if(q) c.push(`<span class="chip">Search: <b>${esc(q)}</b><button type="button" data-clear="q" aria-label="Clear search">×</button></span>`);
+  $('chips').innerHTML=c.length?c.join(' '):'<span class="sub">No filters applied — showing all records</span>';
+  $('count').textContent=`${view.length.toLocaleString('en-IN')} of ${ALL.length.toLocaleString('en-IN')} records`;
+}
+function bars(k){
+  const c={}; for(const r of view){const n=r[k]?norm(r[k]):'';c[n]=(c[n]||0)+1;}
+  const e=Object.entries(c).sort((a,b)=>b[1]-a[1]); const max=e[0]?.[1]||1;
+  return `<div class="rows">${e.map(([n,v])=>`<div class="r"><span>${n?esc(labels[k]?.[n]||n):'<i class="sub">Not entered</i>'}</span><b>${v}</b><i style="--w:${(v/max*100).toFixed(1)}%"></i></div>`).join('')}</div>`;
+}
+function renderCards(){
+  if(!view.length){$('cards').innerHTML='';return;}
+  const d=k=>new Set(view.map(r=>norm(r[k])).filter(Boolean)).size;
+  const dated=view.filter(r=>r._t).sort((a,b)=>a._t-b._t);
+  const fmt=r=>r?`${r._d.d} ${MONTHS[r._d.m-1].slice(0,3)} ${r._d.y}`:'–';
+  const yrs=view.map(r=>+r.year).filter(Boolean);
+  const sch={}; for(const r of view) if(r.scheme) sch[r.scheme]=(sch[r.scheme]||0)+1;
+  $('cards').innerHTML=`
+  <div class="card"><h3>Water structures</h3><div class="big">${view.length.toLocaleString('en-IN')}</div><div class="sub">matching records (each row is one structure)</div>
+   <div class="kv" style="margin-top:10px"><span>Year range</span><b>${yrs.length?Math.min(...yrs)+'–'+Math.max(...yrs):'–'}</b></div><div class="sub" style="margin-top:6px">Photos taken ${fmt(dated[0])} – ${fmt(dated.at(-1))}</div></div>
+  <div class="card"><h3>By structure type</h3>${bars('structure')}</div>
+  <div class="card"><h3>Core / buffer</h3>${bars('zone')}</div>
+  <div class="card"><h3>Spread across the reserve</h3><div class="kv"><span>Divisions</span><b>${d('division')}</b><span>Ranges</span><b>${d('range')}</b><span>Sections</span><b>${d('section')}</b><span>Beats</span><b>${d('beat')}</b><span>Compartments</span><b>${d('compt')}</b></div>
+   <div class="sub" style="margin-top:8px">Scheme entered for ${Object.values(sch).reduce((a,b)=>a+b,0)} of ${view.length}</div></div>`;
+}
+const cmp=(a,b,k)=>{ if(k==='date') return a._t-b._t; const x=a[k],y=b[k];
+  if(['id','compt','year'].includes(k)){const nx=parseFloat(x),ny=parseFloat(y); if(isNaN(nx)||isNaN(ny)) return isNaN(nx)-isNaN(ny); return nx-ny;}
+  return x.localeCompare(y,undefined,{sensitivity:'base'})||(!x)-(!y); };
+function renderTable(){
+  if(!view.length){ $('tbl').innerHTML=`<div class="state"><strong>No records match these filters</strong>Try removing a filter or press Reset filters.</div>`; $('pager').hidden=true; return; }
+  const pages=Math.max(1,Math.ceil(view.length/size)); page=Math.min(page,pages);
+  const rows=view.slice((page-1)*size,page*size);
+  $('tbl').innerHTML=`<div class="scroll"><table class="stack"><thead><tr>${TABLE.map(([k,l,n])=>`<th class="${n||''}" aria-sort="${sort.k===k?(sort.dir>0?'ascending':'descending'):'none'}"><button type="button" data-sort="${k}">${esc(l)}<span aria-hidden="true">${sort.k===k?(sort.dir>0?'▲':'▼'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${
+    rows.map(r=>`<tr tabindex="0" data-id="${esc(r.id)}">${TABLE.map(([k,l,n])=>`<td class="${n||''}" data-l="${esc(l)}">${k==='zone'&&r[k]?`<span class="tag">${esc(r[k])}</span>`:esc(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const p=$('pager'); p.hidden=false;
+  p.innerHTML=`<div class="g"><label for="psize" style="margin:0">Rows per page</label><select id="psize">${[25,50,100,200].map(s=>`<option${s==size?' selected':''}>${s}</option>`).join('')}</select></div>
+   <div class="g"><button class="btn" type="button" data-pg="-1"${page<=1?' disabled':''}>Previous</button><span>Page ${page} of ${pages}</span><button class="btn" type="button" data-pg="1"${page>=pages?' disabled':''}>Next</button></div>`;
+}
+function render(){
+  view=ALL.filter(r=>match(r)); view.sort((a,b)=>cmp(a,b,sort.k)*sort.dir);
+  renderFilters(); renderChips(); renderCards(); renderTable(); save();
+}
+function openDetail(id){
+  const r=ALL.find(x=>x.id===id); if(!r) return;
+  const lat=parseFloat(r.lat),lng=parseFloat(r.lng); const okGeo=isFinite(lat)&&isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180;
+  $('dTitle').textContent=`Record ${r.id} · ${r.structure}`;
+  $('dBody').innerHTML=COLS.map(([k])=>{ let v=r[k]?esc(r[k]):'<span class="sub">—</span>';
+    if(k==='photoUrl'&&/^https?:\/\//.test(r[k])) v=`<a href="${esc(r[k])}" target="_blank" rel="noopener">Open photo</a>`;
+    if(k==='lng'&&okGeo) v+=` · <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">View on map</a>`;
+    return `<dt>${esc(LABEL[k])}</dt><dd>${v}</dd>`; }).join('')+(r.date&&!r.month?'<dt>Note</dt><dd>Photo date not in a recognised format; this record has no month.</dd>':'');
+  $('detail').classList.add('open'); $('dClose').focus();
+}
+
+$('fsel').addEventListener('change',e=>{const k=e.target.dataset.k; if(!k) return; if(e.target.value) sel[k]=e.target.value; else delete sel[k]; page=1; render();});
+let qt; $('q').addEventListener('input',e=>{clearTimeout(qt); qt=setTimeout(()=>{q=e.target.value.trim().toLowerCase(); page=1; render();},200);});
+$('reset').addEventListener('click',()=>{sel={}; q=''; $('q').value=''; page=1; render();});
+$('chips').addEventListener('click',e=>{const k=e.target.dataset.clear; if(!k) return; if(k==='q'){q='';$('q').value='';} else delete sel[k]; page=1; render();});
+$('tbl').addEventListener('click',e=>{const s=e.target.closest('[data-sort]'); if(s){const k=s.dataset.sort; sort=sort.k===k?{k,dir:-sort.dir}:{k,dir:1}; render(); $('tbl').querySelector(`[data-sort="${k}"]`)?.focus(); return;}
+  const tr=e.target.closest('tr[data-id]'); if(tr) openDetail(tr.dataset.id);});
+$('tbl').addEventListener('keydown',e=>{const tr=e.target.closest?.('tr[data-id]'); if(tr&&(e.key==='Enter'||e.key===' ')){e.preventDefault(); openDetail(tr.dataset.id);}});
+$('pager').addEventListener('click',e=>{const b=e.target.closest('[data-pg]'); if(!b) return; page+= +b.dataset.pg; renderTable(); $('tbl').scrollIntoView({block:'start'});});
+$('pager').addEventListener('change',e=>{if(e.target.id==='psize'){size=+e.target.value; page=1; renderTable(); save();}});
+$('detail').addEventListener('click',e=>{if(e.target.id==='detail'||e.target.id==='dClose') $('detail').classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape') $('detail').classList.remove('open');});
+$('ftoggle').addEventListener('click',()=>{const a=$('filters').classList.toggle('open'); $('ftoggle').setAttribute('aria-expanded',a); renderFilters();});
+$('reload').addEventListener('click',load);
+$('copy').addEventListener('click',async()=>{
+  if(!view.length){$('msg').textContent='Nothing to copy';return;}
+  const keys=COLS.map(c=>c[0]); const cell=v=>/[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v;
+  const csv=[COLS.map(c=>c[1]).join(','),...view.map(r=>keys.map(k=>cell(r[k])).join(','))].join('\n');
+  try{await navigator.clipboard.writeText(csv); $('msg').textContent=`Copied ${view.length} rows — paste into a spreadsheet`;}
+  catch(e){$('msg').textContent='Copy was blocked by the browser';}
+});
+load();
+}
+</script>
+</body>
+</html>
