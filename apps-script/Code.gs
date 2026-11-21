@@ -30,6 +30,9 @@ function doPost(e) {
     const required = { structure: 'Structure', division: 'Division', range: 'Range', section: 'Section', beat: 'Beat' };
     const missing = Object.keys(required).filter(k => !String(d[k] || '').trim()).map(k => required[k]);
     if (missing.length) return wgOut({ ok: false, error: 'Missing: ' + missing.join(', ') });
+    const lat = Number(d.lat), lng = Number(d.lng);
+    if (String(d.lat || '').trim() === '' || String(d.lng || '').trim() === '' || !(lat > 6 && lat < 37 && lng > 68 && lng < 98))
+      return wgOut({ ok: false, error: 'Latitude and longitude are required (decimal numbers, e.g. 16.44747 and 79.16115).' });
 
     const sh = SpreadsheetApp.getActive().getSheetByName(WG_SHEET_NAME);
     if (!sh) return wgOut({ ok: false, error: 'Tab "' + WG_SHEET_NAME + '" not found in the sheet.' });

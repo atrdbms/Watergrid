@@ -324,6 +324,13 @@ body.adding .fbar,body.adding .status{display:none}
    </div>
    <div class="hint">On a phone, “Take photo” opens the camera. Photos are resized to 1600 px before upload.</div>
    <div class="phprev" id="a-prev"><img id="a-img" alt="Selected photo preview"><button class="btn" type="button" id="a-rmph">Remove photo</button></div>
+   <label style="margin-top:18px">Location (GPS) <span class="req">*</span></label>
+   <div class="hint" style="margin-top:0">Filled in automatically from the camera or from the photo. Needed to show the structure on the map.</div>
+   <div class="two">
+    <div><label for="a-lat">Latitude <span class="req">*</span></label><input type="text" id="a-lat" required inputmode="decimal" placeholder="e.g. 16.44747" autocomplete="off"></div>
+    <div><label for="a-lng">Longitude <span class="req">*</span></label><input type="text" id="a-lng" required inputmode="decimal" placeholder="e.g. 79.16115" autocomplete="off"></div>
+   </div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"><button class="btn" type="button" id="a-gps">Use my current location</button><span class="sub" id="a-gpsmsg"></span></div>
    <details>
     <summary>More details (optional)</summary>
     <div class="two">
@@ -333,10 +340,7 @@ body.adding .fbar,body.adding .status{display:none}
      <div><label for="a-scheme">Scheme</label><input type="text" id="a-scheme" list="dl-scheme" autocomplete="off"><datalist id="dl-scheme"></datalist></div>
      <div><label for="a-location">Location</label><input type="text" id="a-location" autocomplete="off"></div>
      <div><label for="a-grid">Grid ID</label><input type="text" id="a-grid" inputmode="numeric" autocomplete="off"></div>
-     <div><label for="a-lat">Latitude</label><input type="text" id="a-lat" inputmode="decimal" placeholder="e.g. 16.44747" autocomplete="off"></div>
-     <div><label for="a-lng">Longitude</label><input type="text" id="a-lng" inputmode="decimal" placeholder="e.g. 79.16115" autocomplete="off"></div>
     </div>
-    <button class="btn" type="button" id="a-gps" style="margin-top:10px">Use my current location</button> <span class="sub" id="a-gpsmsg"></span>
     <label for="a-remarks">Remarks</label><textarea id="a-remarks"></textarea>
    </details>
    <label for="a-code">Entry code</label><input type="password" id="a-code" autocomplete="off"><div class="hint">The code set by the administrator for adding records. Remembered on this device.</div>
@@ -604,7 +608,7 @@ $('phPager').addEventListener('click',e=>{const b=e.target.closest('[data-pp]');
 $('phSort').addEventListener('change',()=>{phPage=1;renderPhotos();});
 
 /* ---------- add record ---------- */
-let addPhoto=null,addBusy=false,addInit=false,MROWS=null,masterSrc='';
+let noLocOk=false,addPhoto=null,addBusy=false,addInit=false,MROWS=null,masterSrc='';
 async function loadMaster(){
   const toRows=a=>a.filter(r=>r.slice(0,4).every(v=>String(v||'').trim())).map(r=>({division:String(r[0]).trim(),range:String(r[1]).trim(),section:String(r[2]).trim(),beat:String(r[3]).trim()}));
   try{if(!CONFIG.masterSheetName)throw 0;const ctl=new AbortController();setTimeout(()=>ctl.abort(),8000);
@@ -641,24 +645,41 @@ async function shrink(file){
   let src;try{src=await createImageBitmap(file,{imageOrientation:'from-image'});}catch(e){src=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('This file is not a readable image'));i.src=URL.createObjectURL(file);});}
   const w=src.width,h=src.height,k=Math.min(1,1600/Math.max(w,h));const c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);
   c.getContext('2d').drawImage(src,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.82);}
-async function takeFile(e){const f=e.target.files[0];e.target.value='';if(!f)return;
-  try{addPhoto=await shrink(f);$('a-img').src=addPhoto;$('a-prev').classList.add('on');}catch(err){msgA('err','Could not read that photo: '+err.message);}}
+async function exifGPS(file){ // reads GPS latitude/longitude stored in a JPEG photo, if any
+  try{const v=new DataView(await file.slice(0,262144).arrayBuffer());if(v.getUint16(0)!==0xFFD8)return null;let o=2;
+    while(o+4<v.byteLength){const m=v.getUint16(o),len=v.getUint16(o+2);
+      if(m===0xFFE1&&v.getUint32(o+4)===0x45786966){const t=o+10,le=v.getUint16(t)===0x4949;const u16=p=>v.getUint16(p,le),u32=p=>v.getUint32(p,le);
+        const ifd0=t+u32(t+4);let gps=0;for(let i=0,n=u16(ifd0);i<n;i++){const e=ifd0+2+i*12;if(u16(e)===0x8825)gps=t+u32(e+8);}
+        if(!gps)return null;const g={};for(let i=0,n=u16(gps);i<n;i++){const e=gps+2+i*12,tag=u16(e);
+          if(tag===1||tag===3)g[tag]=String.fromCharCode(v.getUint8(e+8));
+          if(tag===2||tag===4){const p=t+u32(e+8);const r=k=>u32(p+k*8)/(u32(p+k*8+4)||1);g[tag]=r(0)+r(1)/60+r(2)/3600;}}
+        if(g[2]==null||g[4]==null||(!g[2]&&!g[4]))return null;return [g[1]==='S'?-g[2]:g[2],g[3]==='W'?-g[4]:g[4]];}
+      if((m&0xFF00)!==0xFF00)break;o+=2+len;}}catch(e){}return null;}
+function setLoc(lat,lng,how){$('a-lat').value=(+lat).toFixed(6);$('a-lng').value=(+lng).toFixed(6);$('a-gpsmsg').textContent=how;}
+function gpsNow(auto){if(!navigator.geolocation){$('a-gpsmsg').textContent='Location is not available on this device — type it in if you know it.';return;}
+  $('a-gpsmsg').textContent='Getting your current location…';
+  navigator.geolocation.getCurrentPosition(p=>setLoc(p.coords.latitude,p.coords.longitude,`Location from this device (accuracy about ${Math.round(p.coords.accuracy)} m).`),
+   err=>{$('a-gpsmsg').textContent='Could not get location: '+(err.code===1?'location permission was denied. Allow location for this site in the browser settings, or type it in.':err.message);},{enableHighAccuracy:true,timeout:20000,maximumAge:auto?30000:0});}
+async function takeFile(e){const f=e.target.files[0];const fromCam=e.target.id==='a-cam';e.target.value='';if(!f)return;
+  try{const g=await exifGPS(f);addPhoto=await shrink(f);$('a-img').src=addPhoto;$('a-prev').classList.add('on');
+    if(g)setLoc(g[0],g[1],'Location read from the photo.');
+    else if(fromCam)gpsNow(true);
+    else if(!$('a-lat').value)$('a-gpsmsg').textContent='This photo has no location stored. Tap “Use my current location” if you are at the structure, or type it in.';
+  }catch(err){msgA('err','Could not read that photo: '+err.message);}}
 $('a-cam').addEventListener('change',takeFile);$('a-up').addEventListener('change',takeFile);
 $('a-rmph').addEventListener('click',()=>{addPhoto=null;$('a-img').removeAttribute('src');$('a-prev').classList.remove('on');});
-$('a-gps').addEventListener('click',()=>{if(!navigator.geolocation){$('a-gpsmsg').textContent='Location is not available on this device.';return;}
-  $('a-gpsmsg').textContent='Getting location…';
-  navigator.geolocation.getCurrentPosition(p=>{$('a-lat').value=p.coords.latitude.toFixed(6);$('a-lng').value=p.coords.longitude.toFixed(6);$('a-gpsmsg').textContent=`Location set (accuracy about ${Math.round(p.coords.accuracy)} m).`;},
-   err=>{$('a-gpsmsg').textContent='Could not get location: '+(err.code===1?'permission was denied.':err.message);},{enableHighAccuracy:true,timeout:20000});});
+$('a-gps').addEventListener('click',()=>gpsNow(false));
 function msgA(kind,html){const m=$('a-msg');m.className='fmsg '+kind;m.innerHTML=html;m.hidden=false;m.scrollIntoView({block:'nearest'});}
 function clearAdd(keepPlace){if(!keepPlace){['structure','division'].forEach(f=>{$('a-'+f).value='';$('a-'+f+'-o').value='';$('a-'+f+'-o').hidden=true;});cascade('division');}
-  ['compt','scheme','location','grid','lat','lng','remarks'].forEach(f=>$('a-'+f).value='');$('a-date').value=todayISO();$('a-gpsmsg').textContent='';$('a-rmph').click();}
+  noLocOk=false;['compt','scheme','location','grid','lat','lng','remarks'].forEach(f=>$('a-'+f).value='');$('a-date').value=todayISO();$('a-gpsmsg').textContent='';$('a-rmph').click();}
 $('a-clear').addEventListener('click',()=>{clearAdd(false);$('a-msg').hidden=true;});
 $('addForm').addEventListener('submit',async e=>{e.preventDefault();if(addBusy)return;
   const rec={structure:aVal('structure'),division:aVal('division'),range:aVal('range'),section:aVal('section'),beat:aVal('beat')};
   const miss=Object.entries(rec).filter(([,v])=>!v).map(([k])=>LABEL[k]);
   if(miss.length){msgA('err','Please fill in: '+esc(miss.join(', ')));return;}
   const lat=$('a-lat').value.trim(),lng=$('a-lng').value.trim();
-  if((lat||lng)&&!(isFinite(+lat)&&isFinite(+lng)&&lat&&lng&&Math.abs(+lat)<=90&&Math.abs(+lng)<=180)){msgA('err','Latitude and longitude must both be numbers, for example 16.44747 and 79.16115.');return;}
+  if(!lat||!lng){msgA('err','<b>Location is required.</b> Take the photo with the camera, tap “Use my current location”, or type the latitude and longitude.');$('a-lat').focus();return;}
+  if(!(isFinite(+lat)&&isFinite(+lng)&&+lat>6&&+lat<37&&+lng>68&&+lng<98)){msgA('err','Latitude and longitude must be decimal numbers in India, for example 16.44747 and 79.16115.');$('a-lat').focus();return;}
   const d=$('a-date').value||todayISO();const [Y,M,D]=d.split('-');
   Object.assign(rec,{date:`${D}/${M}/${Y}`,compt:$('a-compt').value.trim(),year:$('a-year').value.trim(),zone:$('a-zone').value,scheme:$('a-scheme').value.trim(),location:$('a-location').value.trim(),grid:$('a-grid').value.trim(),lat,lng,remarks:$('a-remarks').value.trim()});
   if(!CONFIG.appsScriptUrl){msgA('err','Saving is not set up yet: the Apps Script link (appsScriptUrl) is missing in the page settings. Nothing was saved.');return;}
