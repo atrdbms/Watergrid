@@ -35,7 +35,7 @@ header svg.hills{position:absolute;left:0;right:0;bottom:0;width:100%;height:46p
 .src span{background:rgba(255,255,255,.12);padding:6px 10px;border-radius:6px}
 nav{background:var(--forest2)}
 nav .max{display:flex;gap:4px;overflow-x:auto}
-nav a{color:var(--fi);text-decoration:none;padding:12px 16px;min-height:46px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap;opacity:.85}
+nav a{flex:none;color:var(--fi);text-decoration:none;padding:12px 16px;min-height:46px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap;opacity:.85}
 nav a[aria-current=page]{border-bottom-color:var(--gold);opacity:1}
 nav a:hover{opacity:1}
 .btn{min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink)}
@@ -142,6 +142,25 @@ input[type=file]{font-size:14px;max-width:100%}
 #lb .bot{font-size:14px}
 .dphoto{margin:14px 0;border-radius:8px}
 .doc .gal{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.doc .pc{border-color:#ddd;background:#fff;break-inside:avoid}.doc .im{background:#eee}.doc .noimg{color:#555}
+/* add record */
+body.adding .fbar,body.adding .status{display:none}
+.form{max-width:760px;margin:16px auto 0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:clamp(16px,3vw,28px)}
+.form h2{margin:0 0 4px;font-size:24px}
+.form .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.form label{font-size:14px;margin-top:14px}.form label .req{color:var(--warn)}
+.form input[type=text],.form input[type=date],.form input[type=number],.form input[type=password],.form textarea{width:100%;min-height:44px;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.form textarea{min-height:80px}
+.form .other{margin-top:6px}
+.form .hint{font-size:13px;color:var(--muted);margin-top:4px}
+.form details{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.form summary{cursor:pointer;font-weight:600;min-height:32px}
+.phbox{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.phbox .btn{flex:1 1 180px;justify-content:center}
+.phprev{margin-top:10px;position:relative;display:none}.phprev.on{display:block}
+.phprev img{width:100%;max-height:360px;object-fit:contain;background:#1b241e;border-radius:8px}
+.phprev .btn{position:absolute;top:8px;right:8px}
+.fmsg{margin-top:16px;padding:12px 14px;border-radius:8px;font-size:15px}
+.fmsg.ok{background:light-dark(#e1f1e4,#1f3a28);border:1px solid #3f8f4a}.fmsg.err{background:light-dark(#fbe9e1,#3a2219);border:1px solid var(--warn)}.fmsg.info{background:var(--ws);border:1px solid var(--line)}
+@media(max-width:640px){.form .two{grid-template-columns:minmax(0,1fr)}}
 /* printable report */
 .doc{background:#fff;color:#1b1f1c;max-width:1000px;margin:14px auto 0;padding:clamp(18px,4vw,48px);border:1px solid var(--line);border-radius:4px;color-scheme:light}
 .doc .dh{display:flex;gap:16px;align-items:center;border-bottom:3px solid #1f4a35;padding-bottom:12px}
@@ -211,7 +230,7 @@ input[type=file]{font-size:14px;max-width:100%}
  </svg>
 </header>
 <nav aria-label="Sections"><div class="max">
- <a href="#dashboard" data-v="dashboard">Dashboard</a><a href="#map" data-v="map">Map</a><a href="#photos" data-v="photos">Photos</a><a href="#reports" data-v="reports">Reports</a><a href="#detailed-report" data-v="detailed-report">Detailed report</a><a href="#records" data-v="records">Records</a>
+ <a href="#dashboard" data-v="dashboard">Dashboard</a><a href="#map" data-v="map">Map</a><a href="#photos" data-v="photos">Photos</a><a href="#reports" data-v="reports">Reports</a><a href="#detailed-report" data-v="detailed-report">Detailed report</a><a href="#records" data-v="records">Records</a><a href="#add-record" data-v="add-record">+ Add record</a>
 </div></nav>
 
 <section class="fbar" aria-label="Filter menu"><div class="max">
@@ -284,6 +303,47 @@ input[type=file]{font-size:14px;max-width:100%}
   <div class="doc" id="doc"></div>
  </section>
 
+ <section class="view" id="v-add-record" aria-label="Add a new record">
+  <form class="form" id="addForm" novalidate>
+   <h2>Add a new record</h2>
+   <p class="sub" style="margin:0">Saved as a new row in the Google Sheet (tab “artificial”). Fields marked <span style="color:var(--warn)">*</span> are required.</p>
+   <div class="fmsg info" id="addSetup" hidden></div>
+   <div class="two">
+    <div><label for="a-structure">Structure <span class="req">*</span></label><select id="a-structure" data-f="structure" required></select><input type="text" class="other" id="a-structure-o" placeholder="Type the structure type" hidden></div>
+    <div><label for="a-date">Date</label><input type="date" id="a-date"><div class="hint">Defaults to today. Saved as the photo date.</div></div>
+    <div><label for="a-division">Division <span class="req">*</span></label><select id="a-division" data-f="division" required></select><input type="text" class="other" id="a-division-o" placeholder="Type the division name" hidden></div>
+    <div><label for="a-range">Range <span class="req">*</span></label><select id="a-range" data-f="range" required></select><input type="text" class="other" id="a-range-o" placeholder="Type the range name" hidden></div>
+    <div><label for="a-section">Section <span class="req">*</span></label><select id="a-section" data-f="section" required></select><input type="text" class="other" id="a-section-o" placeholder="Type the section name" hidden></div>
+    <div><label for="a-beat">Beat <span class="req">*</span></label><select id="a-beat" data-f="beat" required></select><input type="text" class="other" id="a-beat-o" placeholder="Type the beat name" hidden></div>
+   </div>
+   <label>Photo of the structure</label>
+   <div class="phbox">
+    <label class="btn" for="a-cam" style="margin:0">Take photo with camera</label><input type="file" id="a-cam" accept="image/*" capture="environment" hidden>
+    <label class="btn" for="a-up" style="margin:0">Upload a photo</label><input type="file" id="a-up" accept="image/*" hidden>
+   </div>
+   <div class="hint">On a phone, “Take photo” opens the camera. Photos are resized to 1600 px before upload.</div>
+   <div class="phprev" id="a-prev"><img id="a-img" alt="Selected photo preview"><button class="btn" type="button" id="a-rmph">Remove photo</button></div>
+   <details>
+    <summary>More details (optional)</summary>
+    <div class="two">
+     <div><label for="a-compt">Compt. No</label><input type="text" id="a-compt" list="dl-compt" inputmode="numeric" autocomplete="off"><datalist id="dl-compt"></datalist></div>
+     <div><label for="a-year">Year</label><input type="number" id="a-year" min="1990" max="2100"></div>
+     <div><label for="a-zone">Core / buffer</label><select id="a-zone"></select></div>
+     <div><label for="a-scheme">Scheme</label><input type="text" id="a-scheme" list="dl-scheme" autocomplete="off"><datalist id="dl-scheme"></datalist></div>
+     <div><label for="a-location">Location</label><input type="text" id="a-location" autocomplete="off"></div>
+     <div><label for="a-grid">Grid ID</label><input type="text" id="a-grid" inputmode="numeric" autocomplete="off"></div>
+     <div><label for="a-lat">Latitude</label><input type="text" id="a-lat" inputmode="decimal" placeholder="e.g. 16.44747" autocomplete="off"></div>
+     <div><label for="a-lng">Longitude</label><input type="text" id="a-lng" inputmode="decimal" placeholder="e.g. 79.16115" autocomplete="off"></div>
+    </div>
+    <button class="btn" type="button" id="a-gps" style="margin-top:10px">Use my current location</button> <span class="sub" id="a-gpsmsg"></span>
+    <label for="a-remarks">Remarks</label><textarea id="a-remarks"></textarea>
+   </details>
+   <label for="a-code">Entry code</label><input type="password" id="a-code" autocomplete="off"><div class="hint">The code set by the administrator for adding records. Remembered on this device.</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px"><button class="btn pri" type="submit" id="a-save">Save record</button><button class="btn" type="button" id="a-clear">Clear form</button></div>
+   <div class="fmsg" id="a-msg" hidden role="status"></div>
+  </form>
+ </section>
+
  <section class="view" id="v-records" aria-label="Records">
   <div class="tbox">
    <div class="tools"><h2>Records</h2><div class="g"><span class="sub" id="msg"></span><button class="btn" id="copy" type="button">Copy as CSV</button></div></div>
@@ -308,6 +368,7 @@ const CONFIG = {
   sheetName: 'artificial',
   liveUrl: null,              // optional: a "Publish to web" CSV link instead of the default
   snapshotUrl: 'data.json',   // saved copy of the sheet beside this page, used if live access fails
+  appsScriptUrl: '',          // Add record: the Google Apps Script web app URL (ends in /exec) — see setup steps
   googleMapsKey: '',          // optional: Google Maps JavaScript API key for the "Google satellite" background
   timeoutMs: 10000
 };
@@ -416,7 +477,7 @@ function render(){
   if(!ALL.length)return;
   view=ALL.filter(r=>match(r));view.sort((a,b)=>cmp(a,b,sort.k)*sort.dir);
   renderFilters();renderChips();save();
-  ({dashboard:renderDash,map:renderMap,photos:renderPhotos,reports:renderReports,'detailed-report':renderDoc,records:renderTable})[cur]();
+  ({'add-record':renderAdd,dashboard:renderDash,map:renderMap,photos:renderPhotos,reports:renderReports,'detailed-report':renderDoc,records:renderTable})[cur]();
 }
 
 /* ---------- chart helpers (HTML) ---------- */
@@ -538,6 +599,68 @@ document.addEventListener('keydown',e=>{if(!$('lb').classList.contains('open'))r
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ph]');if(b){e.preventDefault();e.stopPropagation();openLB(b.dataset.ph);}},true);
 $('phPager').addEventListener('click',e=>{const b=e.target.closest('[data-pp]');if(!b)return;phPage+=+b.dataset.pp;renderPhotos();$('v-photos').scrollIntoView({block:'start'});});
 $('phSort').addEventListener('change',()=>{phPage=1;renderPhotos();});
+
+/* ---------- add record ---------- */
+let addPhoto=null,addBusy=false,addInit=false;
+const OTHER='__other__';
+const uniq=(rows,k)=>{const m={};for(const r of rows){const n=norm(r[k]);if(n&&!m[n])m[n]=labels[k]?.[n]||r[k];}return Object.entries(m).sort((a,b)=>a[1].localeCompare(b[1],undefined,{numeric:true}));};
+const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+function aVal(f){const s=$('a-'+f);return s.value===OTHER?$('a-'+f+'-o').value.trim():(s.value?(labels[f]?.[s.value]||s.selectedOptions[0]?.dataset.raw||''):'');}
+function fillSel(f,rows,keep){const s=$('a-'+f),prev=keep?s.value:'';const opts=uniq(rows,f);
+  s.innerHTML=`<option value="">Select ${f}</option>`+opts.map(([n,l])=>`<option value="${esc(n)}" data-raw="${esc(l)}">${esc(l)}</option>`).join('')+`<option value="${OTHER}">Other (type a new name)</option>`;
+  if(prev&&[...s.options].some(o=>o.value===prev))s.value=prev;$('a-'+f+'-o').hidden=s.value!==OTHER;}
+function cascade(from){const chain=['division','range','section','beat'];const i=chain.indexOf(from);
+  for(let j=i+1;j<chain.length;j++){const f=chain[j];let rows=ALL;for(let k=0;k<j;k++){const v=$('a-'+chain[k]).value;if(v===OTHER){rows=[];break;}if(v)rows=rows.filter(r=>norm(r[chain[k]])===v);}fillSel(f,rows,true);}
+  const beat=$('a-beat').value;const cr=beat&&beat!==OTHER?ALL.filter(r=>norm(r.beat)===beat):ALL;
+  $('dl-compt').innerHTML=[...new Set(cr.map(r=>r.compt).filter(Boolean))].sort((a,b)=>a-b).map(c=>`<option value="${esc(c)}">`).join('');}
+function renderAdd(){
+  if(!addInit&&ALL.length){addInit=true;fillSel('structure',ALL);fillSel('division',ALL);cascade('division');
+    $('a-zone').innerHTML='<option value="">—</option>'+zoneOrder.map(n=>`<option>${esc(lab('zone',n))}</option>`).join('');
+    $('dl-scheme').innerHTML=Object.values(labels.scheme||{}).map(v=>`<option value="${esc(v)}">`).join('');
+    $('a-date').value=todayISO();$('a-year').value=new Date().getFullYear();
+    try{$('a-code').value=localStorage.getItem('atr-wg-code')||'';}catch(e){}}
+  const st=$('addSetup');
+  if(!CONFIG.appsScriptUrl){st.hidden=false;st.innerHTML='<b>Saving is not set up yet.</b> The administrator needs to deploy the Google Apps Script and paste its web app link into <code>appsScriptUrl</code> in this page’s settings. You can still fill the form to try it.';}
+  else st.hidden=true;
+}
+['structure','division','range','section','beat'].forEach(f=>$('a-'+f).addEventListener('change',e=>{$('a-'+f+'-o').hidden=e.target.value!==OTHER;if(e.target.value===OTHER)$('a-'+f+'-o').focus();if(f!=='structure')cascade(f);}));
+async function shrink(file){
+  let src;try{src=await createImageBitmap(file,{imageOrientation:'from-image'});}catch(e){src=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('This file is not a readable image'));i.src=URL.createObjectURL(file);});}
+  const w=src.width,h=src.height,k=Math.min(1,1600/Math.max(w,h));const c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);
+  c.getContext('2d').drawImage(src,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.82);}
+async function takeFile(e){const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{addPhoto=await shrink(f);$('a-img').src=addPhoto;$('a-prev').classList.add('on');}catch(err){msgA('err','Could not read that photo: '+err.message);}}
+$('a-cam').addEventListener('change',takeFile);$('a-up').addEventListener('change',takeFile);
+$('a-rmph').addEventListener('click',()=>{addPhoto=null;$('a-img').removeAttribute('src');$('a-prev').classList.remove('on');});
+$('a-gps').addEventListener('click',()=>{if(!navigator.geolocation){$('a-gpsmsg').textContent='Location is not available on this device.';return;}
+  $('a-gpsmsg').textContent='Getting location…';
+  navigator.geolocation.getCurrentPosition(p=>{$('a-lat').value=p.coords.latitude.toFixed(6);$('a-lng').value=p.coords.longitude.toFixed(6);$('a-gpsmsg').textContent=`Location set (accuracy about ${Math.round(p.coords.accuracy)} m).`;},
+   err=>{$('a-gpsmsg').textContent='Could not get location: '+(err.code===1?'permission was denied.':err.message);},{enableHighAccuracy:true,timeout:20000});});
+function msgA(kind,html){const m=$('a-msg');m.className='fmsg '+kind;m.innerHTML=html;m.hidden=false;m.scrollIntoView({block:'nearest'});}
+function clearAdd(keepPlace){if(!keepPlace){['structure','division'].forEach(f=>{$('a-'+f).value='';$('a-'+f+'-o').value='';$('a-'+f+'-o').hidden=true;});cascade('division');}
+  ['compt','scheme','location','grid','lat','lng','remarks'].forEach(f=>$('a-'+f).value='');$('a-date').value=todayISO();$('a-gpsmsg').textContent='';$('a-rmph').click();}
+$('a-clear').addEventListener('click',()=>{clearAdd(false);$('a-msg').hidden=true;});
+$('addForm').addEventListener('submit',async e=>{e.preventDefault();if(addBusy)return;
+  const rec={structure:aVal('structure'),division:aVal('division'),range:aVal('range'),section:aVal('section'),beat:aVal('beat')};
+  const miss=Object.entries(rec).filter(([,v])=>!v).map(([k])=>LABEL[k]);
+  if(miss.length){msgA('err','Please fill in: '+esc(miss.join(', ')));return;}
+  const lat=$('a-lat').value.trim(),lng=$('a-lng').value.trim();
+  if((lat||lng)&&!(isFinite(+lat)&&isFinite(+lng)&&lat&&lng&&Math.abs(+lat)<=90&&Math.abs(+lng)<=180)){msgA('err','Latitude and longitude must both be numbers, for example 16.44747 and 79.16115.');return;}
+  const d=$('a-date').value||todayISO();const [Y,M,D]=d.split('-');
+  Object.assign(rec,{date:`${D}/${M}/${Y}`,compt:$('a-compt').value.trim(),year:$('a-year').value.trim(),zone:$('a-zone').value,scheme:$('a-scheme').value.trim(),location:$('a-location').value.trim(),grid:$('a-grid').value.trim(),lat,lng,remarks:$('a-remarks').value.trim()});
+  if(!CONFIG.appsScriptUrl){msgA('err','Saving is not set up yet: the Apps Script link (appsScriptUrl) is missing in the page settings. Nothing was saved.');return;}
+  const code=$('a-code').value;try{localStorage.setItem('atr-wg-code',code);}catch(e){}
+  addBusy=true;$('a-save').disabled=true;$('a-save').textContent='Saving…';msgA('info',addPhoto?'Uploading photo and saving the record…':'Saving the record…');
+  try{const r=await fetch(CONFIG.appsScriptUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...rec,code,photo:addPhoto})});
+    const j=await r.json();if(!j.ok)throw new Error(j.error||'The sheet did not accept the record');
+    const nr={...rec,id:String(j.id),photoUrl:j.photoUrl||'',photo:j.photoFile||'',time:j.time||'',days:'',_d:{d:+D,m:+M,y:+Y}};nr.month=MONTHS[+M-1];nr._t=+Y*10000+ +M*100+ +D;
+    nr._geo=lat&&lng&&+lat>6&&+lat<37&&+lng>68&&+lng<98?[+lat,+lng]:null;
+    ALL.push(nr);for(const k of ['structure','division','range','section','beat','zone','scheme'])if(nr[k]){const n=norm(nr[k]);(labels[k]||={})[n]??=nr[k];}
+    const o=k=>{const c={};for(const r of ALL){const n=norm(r[k]);if(n)c[n]=(c[n]||0)+1;}return Object.keys(c).sort((a,b)=>c[b]-c[a]);};typeOrder=o('structure');zoneOrder=o('zone');
+    msgA('ok',`<b>Record ${esc(j.id)} saved</b> to the Google Sheet${j.photoUrl?' with its photo':''}. <a href="#" data-rec="${esc(j.id)}">View record</a>. The form keeps the place so you can add the next structure nearby.`);
+    clearAdd(true);
+  }catch(err){msgA('err',`<b>Not saved.</b> ${esc(err.message==='Failed to fetch'?'Could not reach the save service (check the internet connection; in the claude.ai preview saving is blocked — use the hosted site).':err.message)}`);}
+  finally{addBusy=false;$('a-save').disabled=false;$('a-save').textContent='Save record';}});
 
 /* ---------- records table ---------- */
 const cmp=(a,b,k)=>{if(k==='date')return a._t-b._t;const x=a[k],y=b[k];
@@ -676,7 +799,7 @@ $('klist').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 $('kml').addEventListener('change',e=>{kmlErr='';addKml([...e.target.files]);});
 
 /* ---------- navigation & events ---------- */
-function show(v){if(!['dashboard','map','photos','reports','detailed-report','records'].includes(v))v='dashboard';cur=v;
+function show(v){document.body.classList.toggle('adding',v==='add-record'||location.hash==='#add-record');if(!['dashboard','map','photos','reports','detailed-report','records','add-record'].includes(v))v='dashboard';cur=v;
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
   document.querySelectorAll('nav a').forEach(a=>{if(a.dataset.v===v)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   render();}
