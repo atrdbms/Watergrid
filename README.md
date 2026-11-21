@@ -31,7 +31,7 @@ googleMapsKey: '',   // optional, for the "Google satellite" map background
 2. Delete any code in `Code.gs`, then paste in the contents of `apps-script/Code.gs` from this repository.
 3. In the code, replace `PASTE_DRIVE_FOLDER_ID_HERE` with the ID of the Drive folder where new photos should go. The ID is the part after `/folders/` in the folder's link. This account needs edit access to that folder.
 4. Set the entry code staff will type: **Project Settings (gear icon) → Script properties → Add script property**, with name `ENTRY_CODE` and the code you choose as its value. Without this property, anyone who opens the website can add records.
-5. Select `checkSetup` in the function list and click **Run**, then allow the permissions it asks for (Sheets and Drive). The log should show the tab and folder names.
+5. Select `wgCheckSetup` in the function list and click **Run**, then allow the permissions it asks for (Sheets and Drive). The log should show the tab and folder names.
 6. Click **Deploy → New deployment**, choose type **Web app**, and set:
    - **Execute as:** Me
    - **Who has access:** Anyone
