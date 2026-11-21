@@ -266,6 +266,9 @@ body.adding .fbar,body.adding .status{display:none}
      <div class="sub" id="mcount"></div>
      <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:10px"><input type="checkbox" id="photoMk" style="width:20px;height:20px"> Show photos on the map when zoomed in</label><div class="sub" id="photoMkNote"></div>
      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" id="fit" type="button">Zoom to structures</button><a class="btn" id="earthView" target="_blank" rel="noopener" href="https://earth.google.com/web/">Open this area in Google Earth</a></div>
+     <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><b style="font-size:14px">See the structures in Google Earth</b>
+      <p class="sub" style="margin:4px 0 8px">Download the structures matching the current filters as a KML file, then in Google Earth choose <b>File → Import KML file</b> (web) or <b>File → Open</b> (desktop).</p>
+      <button class="btn pri" id="kmlOut" type="button">Download KML for Google Earth</button> <span class="sub" id="kmlOutMsg"></span></div>
     </div>
     <div class="card">
      <h3>KML / KMZ layers</h3>
@@ -406,7 +409,7 @@ const fmtN = n => n.toLocaleString('en-IN');
 /* photos: Drive files shared "anyone with the link"; the thumbnail address loads as an image, the sheet's uc?export=view link does not */
 const pid=r=>{const u=r.photoUrl||'';const m=u.match(/[?&]id=([\w-]+)/)||u.match(/\/d\/([\w-]+)/);return m?m[1]:'';};
 const thumb=(id,w)=>`https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
-const earthUrl=(lat,lng,dist=600)=>`https://earth.google.com/web/@${(+lat).toFixed(6)},${(+lng).toFixed(6)},500a,${Math.round(dist)}d,35y,0h,45t,0r`;
+const earthUrl=(lat,lng,dist=600,pin=true)=>{const a=(+lat).toFixed(6),o=(+lng).toFixed(6);return `https://earth.google.com/web/${pin?`search/${a},${o}/`:''}@${a},${o},500a,${Math.round(dist)}d,35y,0h,45t,0r`;};
 const viewUrl=r=>{const id=pid(r);return id?`https://drive.google.com/file/d/${id}/view`:r.photoUrl;};
 let photoState='checking'; // checking | ok | blocked
 function pimg(r,w,eager){const id=pid(r);if(!id)return '<div class="noimg">No photo in sheet</div>';
@@ -870,7 +873,22 @@ $('dMap').addEventListener('click',()=>{const r=curDetail;if(!r||!r._geo)return;
   setTimeout(()=>{if(!map)return;map.setView(r._geo,16);const m=mkById[r.id];m?m.openPopup():L.popup().setLatLng(r._geo).setContent(popup(r)).openOn(map);},120);});
 $('base').addEventListener('change',e=>setBase(e.target.value));
 $('colorBy').addEventListener('change',renderMap);$('photoMk').addEventListener('change',drawPhotoMarkers);
-$('earthView').addEventListener('click',()=>{if(!map)return;const c=map.getCenter();const b=map.getBounds();const w=b.getNorthEast().distanceTo(b.getSouthWest());$('earthView').href=earthUrl(c.lat,c.lng,Math.max(300,w*1.2));});
+function structuresKML(rows){
+  const x=t=>String(t??'').replace(/[<>&'"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));
+  const hex=c=>{const h=c.replace('#','');return 'ff'+h.slice(4,6)+h.slice(2,4)+h.slice(0,2);}; // KML colour is aabbggrr
+  const types=typeOrder;const styleId=n=>'t'+Math.max(0,types.indexOf(n));
+  const styles=types.map((n,i)=>`<Style id="t${i}"><IconStyle><color>${hex(MC[Math.min(i,MC.length-1)])}</color><scale>1.1</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle><LabelStyle><scale>0.7</scale></LabelStyle></Style>`).join('');
+  const pm=r=>{const id=pid(r);const desc=`${id?`<img src="${thumb(id,400)}" width="320"><br>`:''}<b>${x(r.structure)}</b> · ID ${x(r.id)}<br>Division: ${x(r.division)}<br>Range: ${x(r.range)}<br>Section: ${x(r.section)}<br>Beat: ${x(r.beat)}<br>Compt. No: ${x(r.compt)}<br>${r.location?`Location: ${x(r.location)}<br>`:''}Year: ${x(r.year)}<br>Photo date: ${x(r.date)}<br>Core/buffer: ${x(r.zone)}${r.scheme?`<br>Scheme: ${x(r.scheme)}`:''}${id?`<br><a href="${viewUrl(r)}">Open photo</a>`:''}`;
+    return `<Placemark><name>${x(r.structure)} ${x(r.id)}</name><styleUrl>#${styleId(norm(r.structure))}</styleUrl><description><![CDATA[${desc}]]></description><ExtendedData>${['id','division','range','section','beat','compt','year','structure','date','zone','scheme','location'].map(k=>`<Data name="${LABEL[k]}"><value>${x(r[k])}</value></Data>`).join('')}</ExtendedData><Point><coordinates>${r._geo[1]},${r._geo[0]},0</coordinates></Point></Placemark>`;};
+  const g={};for(const r of rows)if(r._geo)(g[norm(r.structure)]||=[]).push(r);
+  const folders=Object.keys(g).sort((a,b)=>types.indexOf(a)-types.indexOf(b)).map(n=>`<Folder><name>${x(lab('structure',n))} (${g[n].length})</name>${g[n].map(pm).join('')}</Folder>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Amrabad Tiger Reserve – Watergrid structures</name><description>${x(rows.filter(r=>r._geo).length)} structures · exported ${x(new Date().toLocaleString('en-IN'))}</description>${styles}${folders}</Document></kml>`;
+}
+$('kmlOut').addEventListener('click',()=>{const n=view.filter(r=>r._geo).length;if(!n){$('kmlOutMsg').textContent='No structures with a location match these filters.';return;}
+  try{const blob=new Blob([structuresKML(view)],{type:'application/vnd.google-earth.kml+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=`watergrid-structures-${new Date().toISOString().slice(0,10)}.kml`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+    $('kmlOutMsg').textContent=`${n} structures saved to the KML file.`;}catch(e){$('kmlOutMsg').textContent='Download was blocked here; use the hosted site.';}});
+$('earthView').addEventListener('click',()=>{if(!map)return;const c=map.getCenter();const b=map.getBounds();const w=b.getNorthEast().distanceTo(b.getSouthWest());$('earthView').href=earthUrl(c.lat,c.lng,Math.max(300,w*1.2),false);});
 $('fit').addEventListener('click',()=>{fitPending=true;renderMap();});
 $('groupBy').addEventListener('change',renderReports);
 $('incList').addEventListener('change',renderDoc);$('incPh').addEventListener('change',renderDoc);
