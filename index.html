@@ -265,7 +265,7 @@ body.adding .fbar,body.adding .status{display:none}
      <div class="legend" id="mlegend" style="margin:12px 0 4px"></div>
      <div class="sub" id="mcount"></div>
      <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:10px"><input type="checkbox" id="photoMk" style="width:20px;height:20px"> Show photos on the map when zoomed in</label><div class="sub" id="photoMkNote"></div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" id="fit" type="button">Zoom to structures</button></div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" id="fit" type="button">Zoom to structures</button><a class="btn" id="earthView" target="_blank" rel="noopener" href="https://earth.google.com/web/">Open this area in Google Earth</a></div>
     </div>
     <div class="card">
      <h3>KML / KMZ layers</h3>
@@ -359,9 +359,9 @@ body.adding .fbar,body.adding .status{display:none}
  </section>
 </main>
 
-<div id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer"><div class="top"><b id="lbT"></b><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="lbOpen" target="_blank" rel="noopener">Open in Drive</a><button class="btn" id="lbRec" type="button">Full record</button><button class="btn" id="lbMap" type="button">Show on map</button><button class="btn" id="lbClose" type="button">Close</button></div></div>
+<div id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer"><div class="top"><b id="lbT"></b><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="lbOpen" target="_blank" rel="noopener">Open in Drive</a><button class="btn" id="lbRec" type="button">Full record</button><button class="btn" id="lbMap" type="button">Show on map</button><a class="btn" id="lbEarth" target="_blank" rel="noopener">Google Earth</a><button class="btn" id="lbClose" type="button">Close</button></div></div>
 <div class="mid" id="lbImg"></div><div class="bot"><button class="btn" id="lbPrev" type="button">← Previous</button><span id="lbCap"></span><button class="btn" id="lbNext" type="button">Next →</button></div></div>
-<div id="detail" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="p"><div class="ph"><h2 id="dTitle">Record</h2><button class="btn" id="dClose" type="button">Close</button></div><dl id="dBody"></dl><div style="display:flex;gap:8px;margin-top:16px"><button class="btn" id="dMap" type="button">Show on map</button></div></div></div>
+<div id="detail" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="p"><div class="ph"><h2 id="dTitle">Record</h2><button class="btn" id="dClose" type="button">Close</button></div><dl id="dBody"></dl><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="btn" id="dMap" type="button">Show on map</button><a class="btn" id="dEarth" target="_blank" rel="noopener">Open in Google Earth</a></div></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -406,6 +406,7 @@ const fmtN = n => n.toLocaleString('en-IN');
 /* photos: Drive files shared "anyone with the link"; the thumbnail address loads as an image, the sheet's uc?export=view link does not */
 const pid=r=>{const u=r.photoUrl||'';const m=u.match(/[?&]id=([\w-]+)/)||u.match(/\/d\/([\w-]+)/);return m?m[1]:'';};
 const thumb=(id,w)=>`https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
+const earthUrl=(lat,lng,dist=600)=>`https://earth.google.com/web/@${(+lat).toFixed(6)},${(+lng).toFixed(6)},500a,${Math.round(dist)}d,35y,0h,45t,0r`;
 const viewUrl=r=>{const id=pid(r);return id?`https://drive.google.com/file/d/${id}/view`:r.photoUrl;};
 let photoState='checking'; // checking | ok | blocked
 function pimg(r,w,eager){const id=pid(r);if(!id)return '<div class="noimg">No photo in sheet</div>';
@@ -595,7 +596,7 @@ function renderPhotos(){
 function openLB(id){phList=(cur==='photos'?photoRows():view.filter(r=>pid(r)).sort((a,b)=>b._t-a._t));lbI=Math.max(0,phList.findIndex(r=>r.id===id));
   if(!phList.length){const r=ALL.find(x=>x.id===id);if(!r)return;phList=[r];lbI=0;}showLB();$('lb').classList.add('open');$('lbClose').focus();}
 function showLB(){const r=phList[lbI];$('lbT').textContent=`${r.structure} · ID ${r.id}`;
-  $('lbImg').innerHTML=pimg(r,1600,true);$('lbOpen').href=viewUrl(r);$('lbMap').hidden=!r._geo;
+  $('lbImg').innerHTML=pimg(r,1600,true);$('lbOpen').href=viewUrl(r);$('lbMap').hidden=!r._geo;$('lbEarth').hidden=!r._geo;if(r._geo)$('lbEarth').href=earthUrl(r._geo[0],r._geo[1]);
   $('lbCap').textContent=`${r.division} › ${r.range} › ${r.section} › ${r.beat} · Compt. ${r.compt} · Year ${r.year} · Photo ${r.date||'—'} · ${r.zone}  (${lbI+1} of ${phList.length})`;
   $('lbPrev').disabled=lbI<=0;$('lbNext').disabled=lbI>=phList.length-1;}
 const closeLB=()=>$('lb').classList.remove('open');
@@ -716,9 +717,9 @@ function openDetail(id){const r=ALL.find(x=>x.id===id);if(!r)return;curDetail=r;
   $('dTitle').textContent=`Record ${r.id} · ${r.structure}`;
   $('dBody').innerHTML=(pid(r)?`<dd style="grid-column:1/-1"><button class="pc dphoto" type="button" data-ph="${esc(r.id)}" style="width:100%"><div class="im">${pimg(r,800,true)}</div></button></dd>`:'')+COLS.map(([k])=>{let v=r[k]?esc(r[k]):'<span class="sub">—</span>';
     if(k==='photoUrl'&&/^https?:\/\//.test(r[k]))v=`<a href="${esc(viewUrl(r))}" target="_blank" rel="noopener">Open photo in Drive</a>`;
-    if(k==='lng'&&r._geo)v+=` · <a href="https://www.google.com/maps?q=${r._geo[0]},${r._geo[1]}&t=k" target="_blank" rel="noopener">Google Maps</a>`;
+    if(k==='lng'&&r._geo)v+=` · <a href="https://www.google.com/maps?q=${r._geo[0]},${r._geo[1]}&t=k" target="_blank" rel="noopener">Google Maps</a> · <a href="${earthUrl(r._geo[0],r._geo[1])}" target="_blank" rel="noopener">Google Earth</a>`;
     return `<dt>${esc(LABEL[k])}</dt><dd>${v}</dd>`;}).join('')+(!r._geo?'<dt>Note</dt><dd>Latitude/longitude missing or not valid, so this record is not on the map.</dd>':'');
-  $('dMap').hidden=!r._geo;$('detail').classList.add('open');$('dClose').focus();}
+  $('dMap').hidden=!r._geo;$('dEarth').hidden=!r._geo;if(r._geo)$('dEarth').href=earthUrl(r._geo[0],r._geo[1]);$('detail').classList.add('open');$('dClose').focus();}
 
 /* ---------- map ---------- */
 let map=null,ptLayer=null,phLayer=null,bases={},baseCur=null,tileFail=0,tileOk=0,fitPending=true,mkById={};
@@ -769,7 +770,7 @@ function loadGoogle(type){
 function popup(r){return `<div class="pop">${pid(r)?`<div class="im" data-ph="${esc(r.id)}" title="Open photo viewer">${pimg(r,500,true)}</div>`:''}<h4>${esc(r.structure)} · ID ${esc(r.id)}</h4>
   <b>Division</b>${esc(r.division)}<br><b>Range</b>${esc(r.range)}<br><b>Section</b>${esc(r.section)}<br><b>Beat</b>${esc(r.beat)}<br><b>Compt. No</b>${esc(r.compt)}<br>
   ${r.location?`<b>Location</b>${esc(r.location)}<br>`:''}<b>Year</b>${esc(r.year)}<br><b>Photo date</b>${esc(r.date)}<br><b>Core/buffer</b>${esc(r.zone)}<br>
-  ${pid(r)?`<a href="#" data-ph="${esc(r.id)}">Larger photo</a> · `:''}<a href="#" data-rec="${esc(r.id)}">Full record</a></div>`;}
+  ${pid(r)?`<a href="#" data-ph="${esc(r.id)}">Larger photo</a> · `:''}<a href="${earthUrl(r._geo[0],r._geo[1])}" target="_blank" rel="noopener">Google Earth</a> · <a href="#" data-rec="${esc(r.id)}">Full record</a></div>`;}
 function renderMap(){
   if(!initMap())return;
   setTimeout(()=>map.invalidateSize(),0);
@@ -869,6 +870,7 @@ $('dMap').addEventListener('click',()=>{const r=curDetail;if(!r||!r._geo)return;
   setTimeout(()=>{if(!map)return;map.setView(r._geo,16);const m=mkById[r.id];m?m.openPopup():L.popup().setLatLng(r._geo).setContent(popup(r)).openOn(map);},120);});
 $('base').addEventListener('change',e=>setBase(e.target.value));
 $('colorBy').addEventListener('change',renderMap);$('photoMk').addEventListener('change',drawPhotoMarkers);
+$('earthView').addEventListener('click',()=>{if(!map)return;const c=map.getCenter();const b=map.getBounds();const w=b.getNorthEast().distanceTo(b.getSouthWest());$('earthView').href=earthUrl(c.lat,c.lng,Math.max(300,w*1.2));});
 $('fit').addEventListener('click',()=>{fitPending=true;renderMap();});
 $('groupBy').addEventListener('change',renderReports);
 $('incList').addEventListener('change',renderDoc);$('incPh').addEventListener('change',renderDoc);
