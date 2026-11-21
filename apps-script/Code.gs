@@ -57,15 +57,21 @@ function doPost(e) {
     const date = /^\d{2}\/\d{2}\/\d{4}$/.test(d.date || '') ? d.date : Utilities.formatDate(now, WG_TIME_ZONE, 'dd/MM/yyyy');
 
     // Photo
-    let photoUrl = '', photoFile = '';
+    // Photo: a problem here never blocks saving the record; it is reported back as photoError
+    let photoUrl = '', photoFile = '', photoError = '';
     if (d.photo && String(d.photo).indexOf('base64,') > 0) {
-      const b64 = String(d.photo).split('base64,')[1];
-      const name = id + '.Photo.' + Utilities.formatDate(now, WG_TIME_ZONE, 'HHmmss') + '.jpg';
-      const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', name);
-      const file = DriveApp.getFolderById(WG_PHOTO_FOLDER_ID).createFile(blob);
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      photoUrl = 'https://drive.google.com/uc?export=view&id=' + file.getId();
-      photoFile = 'artificial_Images/' + name;
+      try {
+        const b64 = String(d.photo).split('base64,')[1];
+        const name = id + '.Photo.' + Utilities.formatDate(now, WG_TIME_ZONE, 'HHmmss') + '.jpg';
+        const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', name);
+        const file = DriveApp.getFolderById(WG_PHOTO_FOLDER_ID).createFile(blob);
+        // The folder is already shared "anyone with the link"; this extra step may be refused by Google, which is fine
+        try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+        photoUrl = 'https://drive.google.com/uc?export=view&id=' + file.getId();
+        photoFile = 'artificial_Images/' + name;
+      } catch (e) {
+        photoError = String(e && e.message || e);
+      }
     }
 
     const row = new Array(lastCol).fill('');
@@ -94,7 +100,7 @@ function doPost(e) {
     const r = lastRow + 1;
     sh.getRange(r, 1, 1, lastCol).setNumberFormat('@').setValues([row]);
 
-    return wgOut({ ok: true, id: id, row: r, photoUrl: photoUrl, photoFile: photoFile, time: time });
+    return wgOut({ ok: true, id: id, row: r, photoUrl: photoUrl, photoFile: photoFile, photoError: photoError, time: time });
   } catch (err) {
     return wgOut({ ok: false, error: String(err && err.message || err) });
   } finally {
