@@ -161,6 +161,12 @@ body.adding .fbar,body.adding .status{display:none}
 .fmsg{margin-top:16px;padding:12px 14px;border-radius:8px;font-size:15px}
 .fmsg.ok{background:light-dark(#e1f1e4,#1f3a28);border:1px solid #3f8f4a}.fmsg.err{background:light-dark(#fbe9e1,#3a2219);border:1px solid var(--warn)}.fmsg.info{background:var(--ws);border:1px solid var(--line)}
 @media(max-width:640px){.form .two{grid-template-columns:minmax(0,1fr)}}
+#cam{position:fixed;inset:0;background:#000;z-index:4000;display:none;flex-direction:column}
+#cam.open{display:flex}#cam video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000}
+#cam .cbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px max(14px,env(safe-area-inset-left)) max(18px,env(safe-area-inset-bottom))}
+#cam .btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.4)}
+#cam .shoot{width:72px;height:72px;border-radius:50%;border:5px solid #fff;background:#e9e9e9;cursor:pointer;flex:none}
+#camMsg{position:absolute;top:12px;left:12px;right:12px;color:#fff;font-size:14px;text-align:center;text-shadow:0 1px 3px #000}
 /* printable report */
 .doc{background:#fff;color:#1b1f1c;max-width:1000px;margin:14px auto 0;padding:clamp(18px,4vw,48px);border:1px solid var(--line);border-radius:4px;color-scheme:light}
 .doc .dh{display:flex;gap:16px;align-items:center;border-bottom:3px solid #1f4a35;padding-bottom:12px}
@@ -230,7 +236,7 @@ body.adding .fbar,body.adding .status{display:none}
  </svg>
 </header>
 <nav aria-label="Sections"><div class="max">
- <a href="#dashboard" data-v="dashboard">Dashboard</a><a href="#map" data-v="map">Map</a><a href="#photos" data-v="photos">Photos</a><a href="#reports" data-v="reports">Reports</a><a href="#detailed-report" data-v="detailed-report">Detailed report</a><a href="#records" data-v="records">Records</a><a href="#add-record" data-v="add-record">+ Add record</a>
+ <a href="#dashboard" data-v="dashboard">Dashboard</a><a href="#add-record" data-v="add-record">+ Add record</a><a href="#map" data-v="map">Map</a><a href="#photos" data-v="photos">Photos</a><a href="#reports" data-v="reports">Reports</a><a href="#detailed-report" data-v="detailed-report">Detailed report</a><a href="#records" data-v="records">Records</a>
 </div></nav>
 
 <section class="fbar" aria-label="Filter menu"><div class="max">
@@ -322,8 +328,8 @@ body.adding .fbar,body.adding .status{display:none}
    </div>
    <label>Photo of the structure</label>
    <div class="phbox">
-    <label class="btn" for="a-cam" style="margin:0">Take photo with camera</label><input type="file" id="a-cam" accept="image/*" capture="environment" hidden>
-    <label class="btn" for="a-up" style="margin:0">Upload a photo</label><input type="file" id="a-up" accept="image/*" hidden>
+    <button class="btn" type="button" id="a-camBtn">Take photo with camera</button><input type="file" id="a-cam" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" tabindex="-1" aria-hidden="true">
+    <label class="btn" for="a-up" style="margin:0">Upload a photo</label><input type="file" id="a-up" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" tabindex="-1" aria-hidden="true">
    </div>
    <div class="hint">On a phone, “Take photo” opens the camera. Photos are resized to 1600 px before upload.</div>
    <div class="phprev" id="a-prev"><img id="a-img" alt="Selected photo preview"><button class="btn" type="button" id="a-rmph">Remove photo</button></div>
@@ -362,6 +368,8 @@ body.adding .fbar,body.adding .status{display:none}
  </section>
 </main>
 
+<div id="cam" role="dialog" aria-modal="true" aria-label="Camera"><video id="camV" autoplay playsinline muted></video>
+<div class="cbar"><button class="btn" type="button" id="camCancel">Cancel</button><button class="shoot" type="button" id="camShot" aria-label="Take photo"></button><button class="btn" type="button" id="camFlip">Switch camera</button></div><div id="camMsg"></div></div>
 <div id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer"><div class="top"><b id="lbT"></b><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="lbOpen" target="_blank" rel="noopener">Open in Drive</a><button class="btn" id="lbRec" type="button">Full record</button><button class="btn" id="lbMap" type="button">Show on map</button><a class="btn" id="lbEarth" target="_blank" rel="noopener">Google Earth</a><button class="btn" id="lbClose" type="button">Close</button></div></div>
 <div class="mid" id="lbImg"></div><div class="bot"><button class="btn" id="lbPrev" type="button">← Previous</button><span id="lbCap"></span><button class="btn" id="lbNext" type="button">Next →</button></div></div>
 <div id="detail" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="p"><div class="ph"><h2 id="dTitle">Record</h2><button class="btn" id="dClose" type="button">Close</button></div><dl id="dBody"></dl><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="btn" id="dMap" type="button">Show on map</button><a class="btn" id="dEarth" target="_blank" rel="noopener">Open in Google Earth</a></div></div></div>
@@ -377,7 +385,9 @@ const CONFIG = {
   sheetGid: 1668714985,       // the tab's id (the number after gid= in the sheet's address)
   liveUrl: null,              // optional: a "Publish to web" CSV link instead of the default
   snapshotUrl: 'data.json',   // saved copy of the sheet beside this page, used if live access fails
-  masterSheetName: 'Beats',  // optional tab in the watergrid sheet with Division, Range, Section, Beat-Name columns; if missing, the built-in list below is used
+  masterSheetId: '11yGjDALHGVqGzikGtw3LL_-IUihHVFsg', // Beats / Sections / Ranges sheet (must be a Google Sheet shared 'anyone with the link')
+  masterGid: 1920362966,     // its tab id (number after gid=)
+  masterSheetName: 'Beats',  // or: a tab with this name inside the watergrid sheet; if neither can be read, the built-in list is used
   appsScriptUrl: 'https://script.google.com/macros/s/AKfycbzwjz1sPdyW0nErRbVRqiZddI8G0U2keUmil9p4mvpfM5VgRfBfCzBOwOYu3cCH6kpDpw/exec',          // Add record: the Google Apps Script web app URL (ends in /exec) — see setup steps
   googleMapsKey: 'AIzaSyBwO-NMZHJXG40OQpWYog9nFdngjZz7rrg',          // optional: Google Maps JavaScript API key for the "Google satellite" background
   timeoutMs: 10000
@@ -617,13 +627,15 @@ $('phSort').addEventListener('change',()=>{phPage=1;renderPhotos();});
 let noLocOk=false,addPhoto=null,addBusy=false,addInit=false,MROWS=null,masterSrc='';
 async function loadMaster(){
   const toRows=a=>a.filter(r=>r.slice(0,4).every(v=>String(v||'').trim())).map(r=>({division:String(r[0]).trim(),range:String(r[1]).trim(),section:String(r[2]).trim(),beat:String(r[3]).trim()}));
-  try{if(!CONFIG.masterSheetName)throw 0;const ctl=new AbortController();setTimeout(()=>ctl.abort(),8000);
-    const r=await fetch(`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(CONFIG.masterSheetName)}`,{signal:ctl.signal});
-    const t=await r.text();if(!r.ok||/^\s*</.test(t))throw 0;const g=parseCSV(t);const h=g[0].map(hkey);
-    const ix=['division','range','section','beatname'].map((k,i)=>{const j=h.indexOf(k);return j<0&&k==='beatname'?h.indexOf('beat'):j;});
-    if(ix.some(i=>i<0))throw 0;const rows=toRows(g.slice(1).map(r=>ix.map(i=>r[i])));if(!rows.length)throw 0;
-    MROWS=rows;masterSrc=`live from the “${CONFIG.masterSheetName}” tab`;
-  }catch(e){MROWS=toRows(MASTER_SNAPSHOT);masterSrc='official beat list (Beats_Sections_ranges.xlsx, 21 Nov 2026)';}
+  const tryCsv=async(url,label)=>{const ctl=new AbortController();setTimeout(()=>ctl.abort(),8000);
+    const r=await fetch(url,{signal:ctl.signal,cache:'no-store'});const t=await r.text();if(!r.ok||/^\s*</.test(t))throw 0;const g=parseCSV(t);const h=g[0].map(hkey);
+    const ix=['division','range','section','beatname'].map(k=>{const j=h.indexOf(k);return j<0&&k==='beatname'?h.indexOf('beat'):j;});
+    if(ix.some(i=>i<0))throw 0;const rows=toRows(g.slice(1).map(r=>ix.map(i=>r[i])));if(!rows.length)throw 0;MROWS=rows;masterSrc=label;};
+  const tries=[];
+  if(CONFIG.masterSheetId)tries.push(()=>tryCsv(`https://docs.google.com/spreadsheets/d/${CONFIG.masterSheetId}/export?format=csv&gid=${CONFIG.masterGid}`,'Beats / Sections / Ranges Google Sheet (live)'));
+  if(CONFIG.masterSheetName)tries.push(()=>tryCsv(`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(CONFIG.masterSheetName)}`,`“${CONFIG.masterSheetName}” tab of the watergrid sheet (live)`));
+  for(const t of tries){try{await t();return;}catch(e){}}
+  MROWS=toRows(MASTER_SNAPSHOT);masterSrc='built-in copy of Beats_Sections_ranges (21 Nov 2026) — the live sheet could not be read';
 }
 const OTHER='__other__';
 const uniq=(rows,k,raw)=>{const m={};for(const r of rows){const n=norm(r[k]);if(n&&!m[n])m[n]=raw?r[k]:(labels[k]?.[n]||r[k]);}return Object.entries(m).sort((a,b)=>a[1].localeCompare(b[1],undefined,{numeric:true}));};
@@ -673,6 +685,25 @@ async function takeFile(e){const f=e.target.files[0];const fromCam=e.target.id==
     else if(!$('a-lat').value)$('a-gpsmsg').textContent='This photo has no location stored. Tap “Use my current location” if you are at the structure, or type it in.';
   }catch(err){msgA('err','Could not read that photo: '+err.message);}}
 $('a-cam').addEventListener('change',takeFile);$('a-up').addEventListener('change',takeFile);
+/* In-page camera: works in phone browsers and in most app wrappers; falls back to the phone's own camera app */
+let camStream=null,camFacing='environment';
+function camStop(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}$('cam').classList.remove('open');}
+async function camStart(){
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('no camera API');
+  camStop();camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:camFacing},width:{ideal:1920},height:{ideal:1080}},audio:false});
+  $('camV').srcObject=camStream;$('cam').classList.add('open');$('camMsg').textContent='';}
+$('a-camBtn').addEventListener('click',async()=>{
+  try{await camStart();}
+  catch(err){ // fall back to the phone's camera app through the file picker
+    $('a-gpsmsg').textContent=err.name==='NotAllowedError'?'Camera permission was refused — opening the phone camera instead. To use the in-page camera, allow Camera for this site in the browser settings.':'';
+    $('a-cam').click();}});
+$('camCancel').addEventListener('click',camStop);
+$('camFlip').addEventListener('click',async()=>{camFacing=camFacing==='environment'?'user':'environment';try{await camStart();}catch(e){$('camMsg').textContent='Could not switch camera.';}});
+$('camShot').addEventListener('click',()=>{const v=$('camV');if(!v.videoWidth){$('camMsg').textContent='Camera is still starting…';return;}
+  const k=Math.min(1,1600/Math.max(v.videoWidth,v.videoHeight));const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);
+  c.getContext('2d').drawImage(v,0,0,c.width,c.height);addPhoto=c.toDataURL('image/jpeg',0.85);camStop();
+  $('a-img').src=addPhoto;$('a-prev').classList.add('on');gpsNow(true);});
+addEventListener('hashchange',()=>{if(location.hash!=='#add-record')camStop();});
 $('a-rmph').addEventListener('click',()=>{addPhoto=null;$('a-img').removeAttribute('src');$('a-prev').classList.remove('on');});
 $('a-gps').addEventListener('click',()=>gpsNow(false));
 function msgA(kind,html){const m=$('a-msg');m.className='fmsg '+kind;m.innerHTML=html;m.hidden=false;m.scrollIntoView({block:'nearest'});}
