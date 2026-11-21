@@ -77,31 +77,39 @@ function doPost(e) {
       }
     }
 
+    // Store values with the same types as the existing rows: numbers as numbers, date/time as real date/time
     const row = new Array(lastCol).fill('');
     const set = (k, v) => { if (k in col && v !== undefined && v !== null) row[col[k]] = String(v).trim(); };
-    set('idno', id);
+    const setNum = (k, v) => { const t = String(v == null ? '' : v).trim(); if (k in col) row[col[k]] = t !== '' && !isNaN(Number(t)) ? Number(t) : t; };
+    const dm = date.split('/').map(Number);
+    const dateSerial = (Date.UTC(dm[2], dm[1] - 1, dm[0]) - Date.UTC(1899, 11, 30)) / 86400000;
+    const tm = time.split(':').map(Number);
+    const timeSerial = (tm[0] * 3600 + tm[1] * 60 + tm[2]) / 86400;
+    setNum('idno', id);
     set('division', d.division);
     set('range', d.range);
     set('section', d.section);
     set('beat', d.beat);
-    set('compn0', d.compt);
+    setNum('compn0', d.compt);
     set('location', d.location);
     set('scheme', d.scheme);
-    set('year', d.year);
+    setNum('year', d.year);
     set('structure', d.structure);
-    set('latitude', d.lat);
-    set('longitude', d.lng);
+    setNum('latitude', d.lat);
+    setNum('longitude', d.lng);
     set('photo', photoFile);
     set('photourl', photoUrl);
-    set('picturetakendate', date);
-    set('time', time);
-    set('gridid', d.grid);
+    if ('picturetakendate' in col) row[col.picturetakendate] = dateSerial;
+    if ('time' in col) row[col.time] = timeSerial;
+    setNum('gridid', d.grid);
     set('corebuffer', d.zone);
     set('remarks', d.remarks);
 
-    // Write as plain text so dates like 21/11/2026 stay exactly as typed (same as existing rows)
+    // Copy the cell formats of the first data row (number, date dd/mm/yyyy, time) so the new row looks the same
     const r = lastRow + 1;
-    sh.getRange(r, 1, 1, lastCol).setNumberFormat('@').setValues([row]);
+    const target = sh.getRange(r, 1, 1, lastCol);
+    if (lastRow >= 2) sh.getRange(2, 1, 1, lastCol).copyTo(target, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    target.setValues([row]);
 
     return wgOut({ ok: true, id: id, row: r, photoUrl: photoUrl, photoFile: photoFile, photoError: photoError, time: time });
   } catch (err) {
