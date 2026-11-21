@@ -259,7 +259,7 @@ body.adding .fbar,body.adding .status{display:none}
     <div class="card">
      <h3>Map view</h3>
      <label for="base">Background</label>
-     <select id="base"><option value="esri">Satellite (Esri)</option><option value="esriL">Satellite with place names</option><option value="google">Google satellite</option><option value="osm">Street map</option><option value="none">Plain (no background)</option></select>
+     <select id="base"><option value="google">Google satellite</option><option value="googleL">Google satellite with labels</option><option value="esri">Satellite (Esri)</option><option value="esriL">Esri satellite with place names</option><option value="osm">Street map</option><option value="none">Plain (no background)</option></select>
      <label for="colorBy">Colour structures by</label>
      <select id="colorBy"><option value="structure">Structure type</option><option value="zone">Core / buffer</option></select>
      <div class="legend" id="mlegend" style="margin:12px 0 4px"></div>
@@ -726,34 +726,40 @@ const kmlLayers=[];let kmlSeq=0;
 function initMap(){
   if(map)return true;
   if(typeof L==='undefined'){$('map').innerHTML='<div class="state err" style="color:#eee"><strong style="color:#f0a37a">The map library could not load</strong>Check the internet connection and reload the page.</div>';return false;}
-  map=L.map('map',{preferCanvas:true,zoomControl:true}).setView([16.3,78.8],9);
+  map=L.map('map',{preferCanvas:true,zoomControl:true,maxZoom:21}).setView([16.3,78.8],9);
   L.control.scale({imperial:false}).addTo(map);
   const esri='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
   const att='Imagery © Esri, Maxar, Earthstar Geographics';
-  bases.esri=L.tileLayer(esri,{maxZoom:19,attribution:att});
-  bases.esriL=L.layerGroup([L.tileLayer(esri,{maxZoom:19,attribution:att}),L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19})]);
-  bases.osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'});
+  bases.esri=L.tileLayer(esri,{maxZoom:21,maxNativeZoom:18,attribution:att});
+  bases.esriL=L.layerGroup([L.tileLayer(esri,{maxZoom:21,maxNativeZoom:18,attribution:att}),L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:18})]);
+  bases.osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:21,maxNativeZoom:19,attribution:'© OpenStreetMap contributors'});
   bases.none=L.layerGroup();
   for(const b of Object.values(bases))(b.eachLayer?b.eachLayer(l=>watch(l)):watch(b));
   ptLayer=L.layerGroup().addTo(map);phLayer=L.layerGroup().addTo(map);map.on('moveend',drawPhotoMarkers);
+  if(!CONFIG.googleMapsKey&&$('base').value.startsWith('google'))$('base').value='esri';
   setBase($('base').value);
   return true;
 }
 function watch(l){l.on?.('tileerror',()=>{tileFail++;if(tileFail>6&&!tileOk)mapMsg('Map imagery could not load here, so the background is blank. All structures are still plotted. Imagery appears when the site is opened from its hosted web address with internet access.');});l.on?.('tileload',()=>{tileOk++;$('mapmsg').hidden=true;});}
 function mapMsg(t){$('mapmsg').textContent=t;$('mapmsg').hidden=!t;}
 function setBase(v){
-  if(v==='google'){
-    if(!CONFIG.googleMapsKey){mapMsg('Google satellite needs a Google Maps API key (set googleMapsKey in the page settings). Showing Esri satellite instead.');$('base').value='esri';v='esri';}
-    else return loadGoogle();
+  if(v==='google'||v==='googleL'){
+    if(!CONFIG.googleMapsKey){mapMsg('Google satellite needs a Google Maps API key, added once by the administrator (googleMapsKey in the page settings). Showing Esri satellite for now.');$('base').value='esri';v='esri';}
+    else return loadGoogle(v==='googleL'?'hybrid':'satellite');
   }
   if(baseCur)map.removeLayer(baseCur);baseCur=bases[v];baseCur.addTo(map);if(v!=='none'&&tileOk)mapMsg('');if(v==='none')mapMsg('');
 }
-function loadGoogle(){
-  const go=()=>{if(baseCur)map.removeLayer(baseCur);baseCur=L.gridLayer.googleMutant({type:'hybrid',maxZoom:20});baseCur.addTo(map);mapMsg('');};
-  if(L.gridLayer.googleMutant)return go();
-  const s1=document.createElement('script');s1.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(CONFIG.googleMapsKey)}`;
-  s1.onload=()=>{const s2=document.createElement('script');s2.src='https://unpkg.com/leaflet.gridlayer.googlemutant@0.14.1/dist/Leaflet.GoogleMutant.js';s2.onload=go;s2.onerror=()=>mapMsg('Google satellite could not load. Showing Esri satellite.');document.head.appendChild(s2);};
-  s1.onerror=()=>{mapMsg('Google Maps could not load (check the API key and internet). Showing Esri satellite.');$('base').value='esri';setBase('esri');};
+let gmState='';
+function loadGoogle(type){
+  const go=()=>{if(baseCur)map.removeLayer(baseCur);baseCur=L.gridLayer.googleMutant({type,maxZoom:21});baseCur.addTo(map);mapMsg('');};
+  const fail=t=>{mapMsg(t+' Showing Esri satellite instead.');$('base').value='esri';setBase('esri');};
+  if(gmState==='ready')return go();if(gmState==='failed')return fail('Google satellite could not load.');
+  if(gmState==='loading')return;gmState='loading';
+  window.gm_authFailure=()=>{gmState='failed';fail('Google rejected the Maps API key (check that the key is correct, the Maps JavaScript API is enabled, billing is set up, and this website address is allowed for the key).');};
+  window.wgGmReady=()=>{const s2=document.createElement('script');s2.src='https://unpkg.com/leaflet.gridlayer.googlemutant@0.14.1/dist/Leaflet.GoogleMutant.js';
+    s2.onload=()=>{gmState='ready';go();};s2.onerror=()=>{gmState='failed';fail('The Google map add-on could not load.');};document.head.appendChild(s2);};
+  const s1=document.createElement('script');s1.async=true;s1.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(CONFIG.googleMapsKey)}&callback=wgGmReady`;
+  s1.onerror=()=>{gmState='failed';fail('Google Maps could not load (check the internet connection).');};
   document.head.appendChild(s1);
 }
 function popup(r){return `<div class="pop">${pid(r)?`<div class="im" data-ph="${esc(r.id)}" title="Open photo viewer">${pimg(r,500,true)}</div>`:''}<h4>${esc(r.structure)} · ID ${esc(r.id)}</h4>

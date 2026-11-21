@@ -52,3 +52,17 @@ If you change `Code.gs` later, update the same deployment (**Deploy → Manage d
 | COMP_N0, Year, Core_buffer, Scheme, Location, Grid_ID, Latitude, Longitude, Remarks | From "More details (optional)" |
 
 Columns are matched by their header names, so moving columns in the sheet won't break saving. Renaming a header will.
+
+## Google satellite imagery (optional)
+
+The map uses Esri satellite imagery by default (no setup). Esri has real imagery for the reserve down to about zoom level 18; closer than that, the map enlarges that imagery.
+For Google satellite imagery, add a Google Maps API key:
+
+1. Go to https://console.cloud.google.com/ and sign in (e.g. with wgmsatr@gmail.com).
+2. Create a project (e.g. "Watergrid"), then link a billing account (**Billing**). Google requires one, even within the free monthly usage.
+3. **APIs & Services → Library**: search for **Maps JavaScript API** and click **Enable**.
+4. **APIs & Services → Credentials → Create credentials → API key**. Copy the key.
+5. Restrict the key (recommended): **Application restrictions → Websites**, add `https://atrdbms.github.io/*`. **API restrictions → Maps JavaScript API**.
+6. In `index.html`, paste the key into `googleMapsKey: ''`, then commit.
+
+The map then opens on Google satellite, with "Google satellite with labels" and the Esri options still in the Background list.
