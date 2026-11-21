@@ -751,11 +751,15 @@ function setBase(v){
 }
 let gmState='';
 function loadGoogle(type){
-  const go=()=>{if(baseCur)map.removeLayer(baseCur);baseCur=L.gridLayer.googleMutant({type,maxZoom:21});baseCur.addTo(map);mapMsg('');};
+  const go=()=>{if(gmState==='failed')return;if(baseCur)map.removeLayer(baseCur);baseCur=L.gridLayer.googleMutant({type,maxZoom:21});baseCur.addTo(map);mapMsg('');};
   const fail=t=>{mapMsg(t+' Showing Esri satellite instead.');$('base').value='esri';setBase('esri');};
   if(gmState==='ready')return go();if(gmState==='failed')return fail('Google satellite could not load.');
   if(gmState==='loading')return;gmState='loading';
   window.gm_authFailure=()=>{gmState='failed';fail('Google rejected the Maps API key (check that the key is correct, the Maps JavaScript API is enabled, billing is set up, and this website address is allowed for the key).');};
+  // Google reports key/billing problems only in the console: watch for them and fall back to Esri
+  const GM_ERR={BillingNotEnabledMapError:'billing is not enabled for the Google Cloud project of the API key',ApiNotActivatedMapError:'the Maps JavaScript API is not enabled for the key',RefererNotAllowedMapError:'this website address is not allowed for the key',InvalidKeyMapError:'the API key is not valid',ApiTargetBlockedMapError:'the key is restricted and does not allow the Maps JavaScript API',ExpiredKeyMapError:'the API key has expired'};
+  const ce=console.error.bind(console);console.error=(...a)=>{ce(...a);const t=a.join(' ');const k=Object.keys(GM_ERR).find(k=>t.includes(k));
+    if(k&&gmState!=='failed'){gmState='failed';fail(`Google satellite is not available: ${GM_ERR[k]} (${k}). The administrator can fix this in the Google Cloud console.`);}};
   window.wgGmReady=()=>{const s2=document.createElement('script');s2.src='https://unpkg.com/leaflet.gridlayer.googlemutant@0.14.1/dist/Leaflet.GoogleMutant.js';
     s2.onload=()=>{gmState='ready';go();};s2.onerror=()=>{gmState='failed';fail('The Google map add-on could not load.');};document.head.appendChild(s2);};
   const s1=document.createElement('script');s1.async=true;s1.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(CONFIG.googleMapsKey)}&callback=wgGmReady`;
@@ -861,7 +865,7 @@ $('pager').addEventListener('change',e=>{if(e.target.id==='psize'){size=+e.targe
 $('detail').addEventListener('click',e=>{if(e.target.id==='detail'||e.target.id==='dClose')$('detail').classList.remove('open');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('detail').classList.remove('open');});
 document.addEventListener('click',e=>{const a=e.target.closest('a[data-rec]');if(a){e.preventDefault();e.stopPropagation();openDetail(a.dataset.rec);}},true);
-$('dMap').addEventListener('click',()=>{const r=curDetail;$('detail').classList.remove('open');if(location.hash!=='#map')location.hash='map';
+$('dMap').addEventListener('click',()=>{const r=curDetail;if(!r||!r._geo)return;$('detail').classList.remove('open');if(location.hash!=='#map')location.hash='map';
   setTimeout(()=>{if(!map)return;map.setView(r._geo,16);const m=mkById[r.id];m?m.openPopup():L.popup().setLatLng(r._geo).setContent(popup(r)).openOn(map);},120);});
 $('base').addEventListener('change',e=>setBase(e.target.value));
 $('colorBy').addEventListener('change',renderMap);$('photoMk').addEventListener('change',drawPhotoMarkers);
