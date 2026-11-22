@@ -117,6 +117,7 @@ input[type=file]{font-size:14px;max-width:100%}
 .pop{font-size:13px;line-height:1.5}.pop h4{margin:0 0 4px;font-size:15px}
 /* detail */
 /* full-screen map */
+#mapBox{position:relative}
 #mapBox.full{position:fixed;inset:0;z-index:1500;background:#111}
 #mapBox.full #map{height:100vh;height:100dvh;min-height:0;border-radius:0;border:0}
 .fsPanel{display:none}
@@ -268,7 +269,7 @@ body.adding .fbar,body.adding .status{display:none}
 
  <section class="view" id="v-map" aria-label="Map">
   <div class="mapwrap">
-   <div style="position:relative" id="mapBox"><div id="map" role="region" aria-label="Map of water structures"></div><div class="mapmsg" id="mapmsg" hidden></div>
+   <div id="mapBox"><div id="map" role="region" aria-label="Map of water structures"></div><div class="mapmsg" id="mapmsg" hidden></div>
     <div class="fsPanel" id="fsPanel"><label for="fsBase" style="margin:0 0 4px">Background</label><select id="fsBase"></select>
      <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:8px"><input type="checkbox" id="fsGrid" style="width:20px;height:20px"> Grid boxes</label>
      <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="fsPhoto" style="width:20px;height:20px"> Photos when zoomed in</label>
