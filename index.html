@@ -116,6 +116,14 @@ input[type=file]{font-size:14px;max-width:100%}
 .pop b{display:inline-block;min-width:6.5em;color:#5b6459;font-weight:500}
 .pop{font-size:13px;line-height:1.5}.pop h4{margin:0 0 4px;font-size:15px}
 /* detail */
+/* full-screen map */
+#mapBox.full{position:fixed;inset:0;z-index:1500;background:#111}
+#mapBox.full #map{height:100vh;height:100dvh;min-height:0;border-radius:0;border:0}
+.fsPanel{display:none}
+#mapBox.full .fsPanel{display:block;position:absolute;z-index:1001;top:10px;right:10px;width:220px;background:var(--panel);color:var(--ink);border-radius:10px;padding:10px 12px;box-shadow:0 2px 10px rgba(0,0,0,.4);font-size:14px}
+#mapBox.full .fsPanel select{min-height:38px;font-size:15px}
+.leaflet-control-fs a{font:bold 18px/34px system-ui,sans-serif}
+@media(max-width:600px){#mapBox.full .fsPanel{width:auto;left:56px;top:auto;bottom:24px}}
 #detail{position:fixed;inset:0;background:rgba(10,20,14,.45);display:none;justify-content:flex-end;z-index:2000}
 #detail.open{display:flex}
 #detail .p{background:var(--panel);width:min(460px,100%);height:100%;overflow:auto;padding:20px}
@@ -260,7 +268,11 @@ body.adding .fbar,body.adding .status{display:none}
 
  <section class="view" id="v-map" aria-label="Map">
   <div class="mapwrap">
-   <div style="position:relative"><div id="map" role="region" aria-label="Map of water structures"></div><div class="mapmsg" id="mapmsg" hidden></div></div>
+   <div style="position:relative" id="mapBox"><div id="map" role="region" aria-label="Map of water structures"></div><div class="mapmsg" id="mapmsg" hidden></div>
+    <div class="fsPanel" id="fsPanel"><label for="fsBase" style="margin:0 0 4px">Background</label><select id="fsBase"></select>
+     <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:8px"><input type="checkbox" id="fsGrid" style="width:20px;height:20px"> Grid boxes</label>
+     <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="fsPhoto" style="width:20px;height:20px"> Photos when zoomed in</label>
+     <div class="sub" id="fsCount" style="margin-top:6px"></div></div></div>
    <div class="mside">
     <div class="card">
      <h3>Map view</h3>
@@ -773,6 +785,10 @@ function initMap(){
   if(typeof L==='undefined'){$('map').innerHTML='<div class="state err" style="color:#eee"><strong style="color:#f0a37a">The map library could not load</strong>Check the internet connection and reload the page.</div>';return false;}
   map=L.map('map',{preferCanvas:true,zoomControl:true,maxZoom:21}).setView([16.3,78.8],9);
   L.control.scale({imperial:false}).addTo(map);
+  const FS=L.Control.extend({options:{position:'topleft'},onAdd(){const d=L.DomUtil.create('div','leaflet-bar leaflet-control leaflet-control-fs');
+    d.innerHTML='<a href="#" role="button" id="fsBtn" title="Full screen" aria-label="Full screen">⛶</a>';L.DomEvent.disableClickPropagation(d);
+    d.firstChild.addEventListener('click',e=>{e.preventDefault();toggleFull();});return d;}});
+  new FS().addTo(map);
   const esri='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
   const att='Imagery © Esri, Maxar, Earthstar Geographics';
   bases.esri=L.tileLayer(esri,{maxZoom:21,maxNativeZoom:18,attribution:att});
@@ -785,6 +801,19 @@ function initMap(){
   setBase($('base').value);
   return true;
 }
+function toggleFull(force){
+  const box=$('mapBox'),on=force!==undefined?force:!box.classList.contains('full');
+  box.classList.toggle('full',on);document.body.style.overflow=on?'hidden':'';
+  const b=$('fsBtn');if(b){b.textContent=on?'✕':'⛶';b.title=on?'Exit full screen':'Full screen';b.setAttribute('aria-label',b.title);}
+  if(on){$('fsBase').innerHTML=$('base').innerHTML;$('fsBase').value=$('base').value;$('fsGrid').checked=$('gridOn').checked;$('fsPhoto').checked=$('photoMk').checked;$('fsCount').textContent=$('count').textContent;
+    try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}}
+  else{try{if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});}catch(e){}}
+  setTimeout(()=>map&&map.invalidateSize(),60);setTimeout(()=>map&&map.invalidateSize(),400);}
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&$('mapBox').classList.contains('full'))toggleFull(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('mapBox').classList.contains('full')&&!$('detail').classList.contains('open')&&!$('lb').classList.contains('open'))toggleFull(false);});
+addEventListener('hashchange',()=>{if(location.hash!=='#map'&&$('mapBox').classList.contains('full'))toggleFull(false);});
+const mirror=(a,b,prop)=>$(a).addEventListener('change',()=>{$(b)[prop]=$(a)[prop];$(b).dispatchEvent(new Event('change'));});
+mirror('fsBase','base','value');mirror('fsGrid','gridOn','checked');mirror('fsPhoto','photoMk','checked');
 function watch(l){l.on?.('tileerror',()=>{tileFail++;if(tileFail>6&&!tileOk)mapMsg('Map imagery could not load here, so the background is blank. All structures are still plotted. Imagery appears when the site is opened from its hosted web address with internet access.');});l.on?.('tileload',()=>{tileOk++;$('mapmsg').hidden=true;});}
 function mapMsg(t){$('mapmsg').textContent=t;$('mapmsg').hidden=!t;}
 function setBase(v){
