@@ -101,7 +101,10 @@ function doPost(e) {
     set('photourl', photoUrl);
     if ('picturetakendate' in col) row[col.picturetakendate] = dateSerial;
     if ('time' in col) row[col.time] = timeSerial;
-    setNum('gridid', d.grid);
+    // Grid_ID always comes from the location (2x2 km grid); form value only if the point is outside all grid boxes
+    let gridId = '';
+    try { gridId = wgGridAt(d.lat, d.lng); } catch (e) {}
+    setNum('gridid', gridId !== '' ? gridId : d.grid);
     set('corebuffer', d.zone);
     set('remarks', d.remarks);
 
@@ -111,7 +114,7 @@ function doPost(e) {
     if (lastRow >= 2) sh.getRange(2, 1, 1, lastCol).copyTo(target, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
     target.setValues([row]);
 
-    return wgOut({ ok: true, id: id, row: r, photoUrl: photoUrl, photoFile: photoFile, photoError: photoError, time: time });
+    return wgOut({ ok: true, id: id, row: r, grid: row[col.gridid], photoUrl: photoUrl, photoFile: photoFile, photoError: photoError, time: time });
   } catch (err) {
     return wgOut({ ok: false, error: String(err && err.message || err) });
   } finally {
@@ -133,4 +136,57 @@ function wgCheckSetup() {
   Logger.log('Sheet tab: ' + (sh ? sh.getName() + ' (' + sh.getLastRow() + ' rows)' : 'NOT FOUND'));
   Logger.log('Photo folder: ' + DriveApp.getFolderById(WG_PHOTO_FOLDER_ID).getName());
   Logger.log('Entry code set: ' + !!PropertiesService.getScriptProperties().getProperty('ENTRY_CODE'));
+}
+
+/* ---------------- Grid_ID from the 2x2 km grid (2x2grids.kml) ---------------- */
+const WG_GRIDS_URL = 'https://raw.githubusercontent.com/atrdbms/watergrid/main/grids.json';
+let wgGridsCache = null;
+function wgLoadGrids() {
+  if (!wgGridsCache) {
+    const j = JSON.parse(UrlFetchApp.fetch(WG_GRIDS_URL).getContentText());
+    wgGridsCache = j.grids.map(g => ({ id: g[0], ring: [[g[7][0], g[7][1]], [g[7][2], g[7][3]], [g[7][4], g[7][5]], [g[7][6], g[7][7]]] }));
+  }
+  return wgGridsCache;
+}
+/** Returns the Grid_ID of the grid box containing the point, or '' if it is outside all boxes. */
+function wgGridAt(lat, lng) {
+  lat = Number(lat); lng = Number(lng);
+  if (!(lat > 6 && lat < 37 && lng > 68 && lng < 98)) return '';
+  for (const g of wgLoadGrids()) {
+    let inside = false;
+    for (let i = 0, j = 3; i < 4; j = i++) {
+      const [xi, yi] = g.ring[i], [xj, yj] = g.ring[j];
+      if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    if (inside) return g.id;
+  }
+  return '';
+}
+/**
+ * Run once from the editor: rewrites the Grid_ID column for every record whose
+ * Latitude/Longitude falls inside a grid box. Records outside all boxes, or
+ * without a valid location, are left unchanged. Undo with File > Version history if needed.
+ */
+function wgFixGridIds() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(WG_SHEET_NAME);
+  const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+  const head = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const gc = head.indexOf('gridid'), la = head.indexOf('latitude'), lo = head.indexOf('longitude');
+  if (gc < 0 || la < 0 || lo < 0) throw new Error('Grid_ID, Latitude or Longitude column not found');
+  const data = sh.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  const out = sh.getRange(2, gc + 1, lastRow - 1, 1).getValues();
+  let changed = 0, same = 0, outside = 0, noLoc = 0;
+  data.forEach((r, i) => {
+    if (r.every(c => c === '' || c === null)) return;
+    const lat = Number(r[la]), lng = Number(r[lo]);
+    if (!(lat > 6 && lat < 37 && lng > 68 && lng < 98)) { noLoc++; return; }
+    const g = wgGridAt(lat, lng);
+    if (g === '') { outside++; return; }
+    if (String(out[i][0]).trim() === String(g)) { same++; return; }
+    out[i][0] = Number(g); changed++;
+  });
+  sh.getRange(2, gc + 1, lastRow - 1, 1).setValues(out);
+  const msg = 'Grid_ID updated: ' + changed + ' changed, ' + same + ' already correct, ' + outside + ' outside all grid boxes (unchanged), ' + noLoc + ' without a valid location (unchanged).';
+  Logger.log(msg);
+  return msg;
 }

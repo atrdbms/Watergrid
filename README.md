@@ -66,3 +66,10 @@ For Google satellite imagery, add a Google Maps API key:
 6. In `index.html`, paste the key into `googleMapsKey: ''`, then commit.
 
 The map then opens on Google satellite, with "Google satellite with labels" and the Esri options still in the Background list.
+
+## Grid_ID (2×2 km grid)
+
+`grids.json` holds the 1,676 grid boxes from `2x2grids.kml`. The Apps Script uses it to:
+
+- **Set Grid_ID automatically** on every record added through the website, from the record's latitude/longitude.
+- **Correct existing Grid_IDs** with the `wgFixGridIds` function. In the Apps Script editor, choose `wgFixGridIds` and click **Run**. It rewrites Grid_ID for every record whose location falls inside a grid box. Records outside all boxes, or without a valid location, are left unchanged. The log shows how many rows changed. To undo, use **File → Version history** in the sheet.
