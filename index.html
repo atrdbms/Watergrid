@@ -407,6 +407,7 @@ const CONFIG = {
   snapshotUrl: 'data.json',   // saved copy of the sheet beside this page, used if live access fails
   masterSheetId: '11yGjDALHGVqGzikGtw3LL_-IUihHVFsg', // Beats / Sections / Ranges sheet (must be a Google Sheet shared 'anyone with the link')
   masterGid: 1920362966,     // its tab id (number after gid=)
+  ignoreDivisions: ['Anti Poaching Squad','Flying Squad'], // not shown in Add record
   masterSheetName: 'Beats',  // or: a tab with this name inside the watergrid sheet; if neither can be read, the built-in list is used
   appsScriptUrl: 'https://script.google.com/macros/s/AKfycbzwjz1sPdyW0nErRbVRqiZddI8G0U2keUmil9p4mvpfM5VgRfBfCzBOwOYu3cCH6kpDpw/exec',          // Add record: the Google Apps Script web app URL (ends in /exec) — see setup steps
   googleMapsKey: 'AIzaSyBwO-NMZHJXG40OQpWYog9nFdngjZz7rrg',          // optional: Google Maps JavaScript API key for the "Google satellite" background
@@ -647,9 +648,10 @@ $('phPager').addEventListener('click',e=>{const b=e.target.closest('[data-pp]');
 $('phSort').addEventListener('change',()=>{phPage=1;renderPhotos();});
 
 /* ---------- add record ---------- */
+const IGNORE_DIV=(CONFIG.ignoreDivisions||[]).map(norm);
 let noLocOk=false,addPhoto=null,addBusy=false,addInit=false,MROWS=null,masterSrc='';
 async function loadMaster(){
-  const toRows=a=>a.filter(r=>r.slice(0,4).every(v=>String(v||'').trim())).map(r=>({division:String(r[0]).trim(),range:String(r[1]).trim(),section:String(r[2]).trim(),beat:String(r[3]).trim()}));
+  const toRows=a=>a.filter(r=>r.slice(0,4).every(v=>String(v||'').trim())&&!IGNORE_DIV.includes(norm(r[0]))).map(r=>({division:String(r[0]).trim(),range:String(r[1]).trim(),section:String(r[2]).trim(),beat:String(r[3]).trim()}));
   const tryCsv=async(url,label)=>{const ctl=new AbortController();setTimeout(()=>ctl.abort(),8000);
     const r=await fetch(url,{signal:ctl.signal,cache:'no-store'});const t=await r.text();if(!r.ok||/^\s*</.test(t))throw 0;const g=parseCSV(t);const h=g[0].map(hkey);
     const ix=['division','range','section','beatname'].map(k=>{const j=h.indexOf(k);return j<0&&k==='beatname'?h.indexOf('beat'):j;});
