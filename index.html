@@ -331,7 +331,7 @@ body.adding .fbar,body.adding .status{display:none}
  <section class="view" id="v-reports" aria-label="Reports">
   <div class="tbox">
    <div class="tools"><h2>Summary report</h2>
-    <div class="g"><label for="groupBy" style="margin:0">Group by</label><select id="groupBy"><option value="division">Division</option><option value="range" selected>Range</option><option value="section">Section</option><option value="beat">Beat</option><option value="compt">Compt. No</option><option value="year">Year</option><option value="month">Month (photo)</option><option value="scheme">Scheme</option><option value="gridabs">Grid abstract (beat-wise)</option><option value="grid">Grid (2×2 km)</option><option value="kml">KML area</option></select>
+    <div class="g"><label for="groupBy" style="margin:0">Group by</label><select id="groupBy"><option value="district">District</option><option value="division">Division</option><option value="range" selected>Range</option><option value="section">Section</option><option value="beat">Beat</option><option value="compt">Compt. No</option><option value="year">Year</option><option value="month">Month (photo)</option><option value="scheme">Scheme</option><option value="gridabs">Grid abstract (beat-wise)</option><option value="grid">Grid (2×2 km)</option><option value="kml">KML area</option></select>
     <label id="gridAllWrap" style="display:none;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" id="gridAll" style="width:20px;height:20px"> Include grids with no structures</label>
     <button class="btn pri" id="printRep" type="button">Print / save as PDF</button><button class="btn" id="copyRep" type="button">Copy as CSV</button><span class="sub" id="repMsg"></span></div></div>
    <div class="scroll" id="rep"></div>
@@ -434,6 +434,7 @@ const CONFIG = {
   masterSheetName: 'Beats',  // or: a tab with this name inside the watergrid sheet; if neither can be read, the built-in list is used
   appsScriptUrl: 'https://script.google.com/macros/s/AKfycbzwjz1sPdyW0nErRbVRqiZddI8G0U2keUmil9p4mvpfM5VgRfBfCzBOwOYu3cCH6kpDpw/exec',          // Add record: the Google Apps Script web app URL (ends in /exec) — see setup steps
   googleMapsKey: 'AIzaSyBwO-NMZHJXG40OQpWYog9nFdngjZz7rrg',          // optional: Google Maps JavaScript API key for the "Google satellite" background
+  districts: {Achampet:'Nagarkurnool',Amrabad:'Nagarkurnool',Nagarjunasagar:'Nalgonda'}, // division → district
   gridUrl: 'grids.json',
   layersUrl: 'layers/',       // boundary layers: range.json, section.json, beat.json, compartment.json (from the KML files)     // 2x2 km grid boxes (from 2x2grids.kml) shown on the map
   timeoutMs: 10000
@@ -450,9 +451,9 @@ const COLS = [
  ['date','Picture taken date','Photo date',['picturetakendate']],['time','Time','Photo time'],
  ['days','Days not filled','Days not filled',['daysnotfilled']],['grid','Grid_ID','Grid ID',['gridid']],
  ['zone','Core_buffer','Core / buffer',['corebuffer']],['remarks','Remarks','Remarks']];
-const LABEL = Object.fromEntries(COLS.map(c=>[c[0],c[2]])); LABEL.month='Month (photo)'; LABEL.kml='KML area'; LABEL.grid='Grid ID';
+const LABEL = Object.fromEntries(COLS.map(c=>[c[0],c[2]])); LABEL.month='Month (photo)'; LABEL.kml='KML area'; LABEL.grid='Grid ID'; LABEL.district='District';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const FILTERS = [['year','Year'],['month','Month'],['division','Division'],['range','Range'],['section','Section'],['beat','Beat'],['compt','Compt. No'],['structure','Structure'],['zone','core_buffer']];
+const FILTERS = [['year','Year'],['month','Month'],['district','District'],['division','Division'],['range','Range'],['section','Section'],['beat','Beat'],['compt','Compt. No'],['structure','Structure'],['zone','core_buffer']];
 const TABLE = [['id','ID','n'],['structure','Structure'],['division','Division'],['range','Range'],['section','Section'],['beat','Beat'],['compt','Compt. No','n'],['year','Year','n'],['date','Photo date'],['zone','Core / buffer'],['scheme','Scheme']];
 const CH = ['#1f6f82','#c28a00','#c4552a','#3f8f4a','#8a4fbf','#5b6459','#b0306a','#2f5fb3'];   // chart colours
 const MC = ['#2ec5f0','#ffd23f','#ff7a45','#7cdb6b','#e879f9','#ffffff','#ff4d8d','#8fb3ff'];   // map colours (bright on imagery)
@@ -461,6 +462,8 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s ?? '').trim().replace(/\s+/g,' ').replace(/[.]+$/,'').toLowerCase();
 const hkey = s => String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+const DISTRICT_OF=Object.fromEntries(Object.entries(CONFIG.districts||{}).map(([d,v])=>[norm(d),v]));
+const districtOf=div=>DISTRICT_OF[norm(div)]||'';
 const fmtN = n => n.toLocaleString('en-IN');
 /* photos: Drive files shared "anyone with the link"; the thumbnail address loads as an image, the sheet's uc?export=view link does not */
 const pid=r=>{const u=r.photoUrl||'';const m=u.match(/[?&]id=([\w-]+)/)||u.match(/\/d\/([\w-]+)/);return m?m[1]:'';};
@@ -498,7 +501,7 @@ function toRecords(header,rows){
   const missing=map.filter(m=>m[1]<0&&['division','range','section','beat','structure','year'].includes(m[0])).map(m=>LABEL[m[0]]);
   if(missing.length)throw new Error('Sheet is missing expected columns: '+missing.join(', '));
   return rows.filter(r=>r.some(c=>String(c).trim())).map(r=>{const o={};map.forEach(([k,i])=>o[k]=i<0?'':String(r[i]??'').trim());
-    const d=parseDate(o.date);o._d=d&&d.m>=1&&d.m<=12?d:null;o.month=o._d?MONTHS[d.m-1]:'';o._t=o._d?d.y*10000+d.m*100+d.d:0;
+    const d=parseDate(o.date);o._d=d&&d.m>=1&&d.m<=12?d:null;o.month=o._d?MONTHS[d.m-1]:'';o.district=districtOf(o.division);o._t=o._d?d.y*10000+d.m*100+d.d:0;
     const la=parseFloat(o.lat),ln=parseFloat(o.lng);o._geo=isFinite(la)&&isFinite(ln)&&la>6&&la<37&&ln>68&&ln<98?[la,ln]:null;return o;});}
 async function load(){
   $('srcInfo').textContent='Loading records…';
@@ -590,7 +593,7 @@ function renderDash(){
   $('dash').innerHTML=`
   <div class="card w3"><h3>Water structures</h3><div class="big">${fmtN(view.length)}</div><div class="sub">matching records · each row is one structure</div></div>
   <div class="card w3"><h3>Structure types</h3><div class="kv">${typeOrder.filter(n=>c[n]).map(n=>`<span>${esc(lab('structure',n))}</span><b>${c[n]}</b>`).join('')}</div></div>
-  <div class="card w3"><h3>Spread across the reserve</h3><div class="kv"><span>Divisions</span><b>${d('division')}</b><span>Ranges</span><b>${d('range')}</b><span>Sections</span><b>${d('section')}</b><span>Beats</span><b>${d('beat')}</b><span>Compartments</span><b>${d('compt')}</b></div></div>
+  <div class="card w3"><h3>Spread across the reserve</h3><div class="kv"><span>Districts</span><b>${d('district')}</b><span>Divisions</span><b>${d('division')}</b><span>Ranges</span><b>${d('range')}</b><span>Sections</span><b>${d('section')}</b><span>Beats</span><b>${d('beat')}</b><span>Compartments</span><b>${d('compt')}</b></div></div>
   <div class="card w3"><h3>Record completeness</h3><div class="kv"><span>With photo link</span><b>${ph}</b><span>With map location</span><b>${geo}</b><span>Scheme entered</span><b>${sch}</b><span>Photo dates</span><b></b></div><div class="sub">${f(dated[0])} – ${f(dated.at(-1))}</div></div>
   <div class="card w8"><h3>Structures by range <small>· coloured by structure type</small></h3>${hbars('range',view)}</div>
   <div class="card w4"><h3>Core / buffer</h3>${donut('zone')}</div>
@@ -627,7 +630,7 @@ async function gridReport(rows,includeEmpty){
   const gi={};for(const g of GRIDS||[])gi[g.id]=g;
   const by={};for(const r of rows){const g=String(r.grid).trim()||'';(by[g]||=[]).push(r);}
   let ids=Object.keys(by);
-  if(includeEmpty&&GRIDS){let gs=GRIDS;for(const k of ['division','range','section','beat'])if(sel[k]){const m=gs.filter(g=>norm(g[k])===sel[k]);if(m.length)gs=m;}for(const g of gs)if(!by[g.id])by[g.id]=[];ids=Object.keys(by);}
+  if(includeEmpty&&GRIDS){let gs=GRIDS;if(sel.district){const m=gs.filter(g=>norm(districtOf(g.division))===sel.district);if(m.length)gs=m;}for(const k of ['division','range','section','beat'])if(sel[k]){const m=gs.filter(g=>norm(g[k])===sel[k]);if(m.length)gs=m;}for(const g of gs)if(!by[g.id])by[g.id]=[];ids=Object.keys(by);}
   ids.sort((a,b)=>{if(!a)return 1;if(!b)return -1;const na=+a,nb=+b;return isNaN(na)||isNaN(nb)?a.localeCompare(b):na-nb;});
   const types=typeOrder,zones=zoneOrder;
   const head=['Grid ID','Beat (grid)','Section (grid)','Range (grid)',...types.map(t=>lab('structure',t)),...zones.map(z=>lab('zone',z)),'Total'];
@@ -646,7 +649,7 @@ async function gridReport(rows,includeEmpty){
 async function gridAbstract(rows){
   if(!GRIDS){try{await loadGrids();}catch(e){}}
   if(!GRIDS)return {html:'<div class="state"><strong>Grid boxes could not be loaded</strong></div>',csv:''};
-  let gs=GRIDS;for(const k of ['division','range','section','beat'])if(sel[k]){const m=gs.filter(g=>norm(g[k])===sel[k]);if(m.length)gs=m;}
+  let gs=GRIDS;if(sel.district){const m=gs.filter(g=>norm(districtOf(g.division))===sel.district);if(m.length)gs=m;}for(const k of ['division','range','section','beat'])if(sel[k]){const m=gs.filter(g=>norm(g[k])===sel[k]);if(m.length)gs=m;}
   const byG={};for(const r of rows){const g=String(r.grid).trim();(byG[g]||=[]).push(r);}
   const types=typeOrder;const tree={};
   for(const g of gs){const d=g.division||'—',ra=g.range||'—',b=g.beat||'—';((tree[d]||={})[ra]||={})[b]||=[];tree[d][ra][b].push(g);}
@@ -683,7 +686,7 @@ async function renderReports(){
 }
 
 /* ---------- detailed (printable) report ---------- */
-const DOC_SECS=[{k:'division',t:'By division'},{k:'range',t:'By range'},{k:'section',t:'By section'},{k:'beat',t:'By beat'},{k:'compt',t:'By compartment (Compt. No)'},{k:'gridabs',t:'Grid abstract (beat-wise)'},{k:'grid',t:'By grid (2×2 km)'},{k:'year',t:'By year (sheet “Year”)'},{k:'month',t:'By month of photo'},{k:'scheme',t:'By scheme'},{k:'kml',t:'By uploaded KML area'}];
+const DOC_SECS=[{k:'district',t:'By district'},{k:'division',t:'By division'},{k:'range',t:'By range'},{k:'section',t:'By section'},{k:'beat',t:'By beat'},{k:'compt',t:'By compartment (Compt. No)'},{k:'gridabs',t:'Grid abstract (beat-wise)'},{k:'grid',t:'By grid (2×2 km)'},{k:'year',t:'By year (sheet “Year”)'},{k:'month',t:'By month of photo'},{k:'scheme',t:'By scheme'},{k:'kml',t:'By uploaded KML area'}];
 let docSel={division:1,range:1,section:1,grid:1,year:1,month:1,scheme:1,kml:1};
 try{const v=JSON.parse(localStorage.getItem('atr-wg-doc')||'null');if(v)docSel=v;}catch(e){}
 $('secOpts').innerHTML=DOC_SECS.map((d,i)=>`<label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" data-sec="${d.k}" style="width:20px;height:20px"${docSel[d.k]?' checked':''}> ${i+1}. ${d.t}</label>`).join('');
@@ -836,7 +839,7 @@ $('addForm').addEventListener('submit',async e=>{e.preventDefault();if(addBusy)r
   addBusy=true;$('a-save').disabled=true;$('a-save').textContent='Saving…';msgA('info',addPhoto?'Uploading photo and saving the record…':'Saving the record…');
   try{const r=await fetch(CONFIG.appsScriptUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...rec,code,photo:addPhoto})});
     const j=await r.json();if(!j.ok)throw new Error(j.error||'The sheet did not accept the record');
-    const nr={...rec,id:String(j.id),photoUrl:j.photoUrl||'',photo:j.photoFile||'',time:j.time||'',days:'',_d:{d:+D,m:+M,y:+Y}};nr.month=MONTHS[+M-1];nr._t=+Y*10000+ +M*100+ +D;
+    const nr={...rec,id:String(j.id),photoUrl:j.photoUrl||'',photo:j.photoFile||'',time:j.time||'',days:'',_d:{d:+D,m:+M,y:+Y}};nr.month=MONTHS[+M-1];nr.district=districtOf(nr.division);nr._t=+Y*10000+ +M*100+ +D;
     nr._geo=lat&&lng&&+lat>6&&+lat<37&&+lng>68&&+lng<98?[+lat,+lng]:null;
     ALL.push(nr);for(const k of ['structure','division','range','section','beat','zone','scheme'])if(nr[k]){const n=norm(nr[k]);(labels[k]||={})[n]??=nr[k];}
     const o=k=>{const c={};for(const r of ALL){const n=norm(r[k]);if(n)c[n]=(c[n]||0)+1;}return Object.keys(c).sort((a,b)=>c[b]-c[a]);};typeOrder=o('structure');zoneOrder=o('zone');
@@ -1026,7 +1029,7 @@ function drawGrids(){
   if(!$('gridOn').checked)return;if(!GRIDS){loadGrids();return;}
   const byGrid={};for(const r of view){const g=String(r.grid).trim();if(g)(byGrid[g]||=[]).push(r);}
   // show only grids of the selected division/range/section/beat when the names match the grid file
-  let gs=GRIDS;for(const [k,f] of [['division','division'],['range','range'],['section','section'],['beat','beat']])if(sel[k]){const m=gs.filter(g=>norm(g[f])===sel[k]);if(m.length)gs=m;}
+  let gs=GRIDS;if(sel.district){const m=gs.filter(g=>norm(districtOf(g.division))===sel.district);if(m.length)gs=m;}for(const [k,f] of [['division','division'],['range','range'],['section','section'],['beat','beat']])if(sel[k]){const m=gs.filter(g=>norm(g[f])===sel[k]);if(m.length)gs=m;}
   const redOnly=$('gridRedOnly').checked;gridLayer=L.featureGroup();let green=0,red=0;
   for(const g of gs){const rs=byGrid[g.id]||[];const ok=rs.length>0;ok?green++:red++;if(redOnly&&ok)continue;
     L.polygon(g.ll,{bubblingMouseEvents:false,color:ok?'#14532d':'#7f1d1d',weight:1,fillColor:ok?'#22c55e':'#ef4444',fillOpacity:ok?.35:.22})
