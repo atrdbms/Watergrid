@@ -329,7 +329,8 @@ body.adding .fbar,body.adding .status{display:none}
  <section class="view" id="v-reports" aria-label="Reports">
   <div class="tbox">
    <div class="tools"><h2>Summary report</h2>
-    <div class="g"><label for="groupBy" style="margin:0">Group by</label><select id="groupBy"><option value="division">Division</option><option value="range" selected>Range</option><option value="section">Section</option><option value="beat">Beat</option><option value="compt">Compt. No</option><option value="year">Year</option><option value="month">Month (photo)</option><option value="scheme">Scheme</option><option value="kml">KML area</option></select>
+    <div class="g"><label for="groupBy" style="margin:0">Group by</label><select id="groupBy"><option value="division">Division</option><option value="range" selected>Range</option><option value="section">Section</option><option value="beat">Beat</option><option value="compt">Compt. No</option><option value="year">Year</option><option value="month">Month (photo)</option><option value="scheme">Scheme</option><option value="grid">Grid (2×2 km)</option><option value="kml">KML area</option></select>
+    <label id="gridAllWrap" style="display:none;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" id="gridAll" style="width:20px;height:20px"> Include grids with no structures</label>
     <button class="btn" id="copyRep" type="button">Copy as CSV</button><span class="sub" id="repMsg"></span></div></div>
    <div class="scroll" id="rep"></div>
   </div>
@@ -441,7 +442,7 @@ const COLS = [
  ['date','Picture taken date','Photo date',['picturetakendate']],['time','Time','Photo time'],
  ['days','Days not filled','Days not filled',['daysnotfilled']],['grid','Grid_ID','Grid ID',['gridid']],
  ['zone','Core_buffer','Core / buffer',['corebuffer']],['remarks','Remarks','Remarks']];
-const LABEL = Object.fromEntries(COLS.map(c=>[c[0],c[2]])); LABEL.month='Month (photo)'; LABEL.kml='KML area';
+const LABEL = Object.fromEntries(COLS.map(c=>[c[0],c[2]])); LABEL.month='Month (photo)'; LABEL.kml='KML area'; LABEL.grid='Grid ID';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const FILTERS = [['year','Year'],['month','Month'],['division','Division'],['range','Range'],['section','Section'],['beat','Beat'],['compt','Compt. No'],['structure','Structure'],['zone','core_buffer']];
 const TABLE = [['id','ID','n'],['structure','Structure'],['division','Division'],['range','Range'],['section','Section'],['beat','Beat'],['compt','Compt. No','n'],['year','Year','n'],['date','Photo date'],['zone','Core / buffer'],['scheme','Scheme']];
@@ -539,7 +540,7 @@ function render(){
   if(!ALL.length)return;
   view=ALL.filter(r=>match(r));view.sort((a,b)=>cmp(a,b,sort.k)*sort.dir);
   renderFilters();renderChips();save();
-  ({'add-record':renderAdd,dashboard:renderDash,map:renderMap,photos:renderPhotos,reports:renderReports,'detailed-report':renderDoc,records:renderTable})[cur]();
+  ({'add-record':renderAdd,dashboard:renderDash,map:renderMap,photos:renderPhotos,reports:renderReports,'detailed-report':()=>{renderDoc();renderDocGrid().then(()=>{if(cur==='detailed-report')renderDoc();});},records:renderTable})[cur]();
 }
 
 /* ---------- chart helpers (HTML) ---------- */
@@ -612,8 +613,33 @@ function reportTable(k,rows){
   return {html,csv:[head,...body,tot].map(r=>r.map(cell).join(',')).join('\n'),n:keys.length};
 }
 let lastCSV='';
-function renderReports(){
-  const k=$('groupBy').value;
+/* grid-wise report: one row per Grid_ID, with the grid's beat/section/range from the grid file */
+async function gridReport(rows,includeEmpty){
+  if(!GRIDS){try{await loadGrids();}catch(e){}}
+  const gi={};for(const g of GRIDS||[])gi[g.id]=g;
+  const by={};for(const r of rows){const g=String(r.grid).trim()||'';(by[g]||=[]).push(r);}
+  let ids=Object.keys(by);
+  if(includeEmpty&&GRIDS){let gs=GRIDS;for(const k of ['division','range','section','beat'])if(sel[k]){const m=gs.filter(g=>norm(g[k])===sel[k]);if(m.length)gs=m;}for(const g of gs)if(!by[g.id])by[g.id]=[];ids=Object.keys(by);}
+  ids.sort((a,b)=>{if(!a)return 1;if(!b)return -1;const na=+a,nb=+b;return isNaN(na)||isNaN(nb)?a.localeCompare(b):na-nb;});
+  const types=typeOrder,zones=zoneOrder;
+  const head=['Grid ID','Beat (grid)','Section (grid)','Range (grid)',...types.map(t=>lab('structure',t)),...zones.map(z=>lab('zone',z)),'Total'];
+  const body=ids.map(id=>{const rs=by[id],g=gi[id],ct=count(rs,'structure'),cz=count(rs,'zone');
+    return [id||'Not entered',g?g.beat:(id?'not in grid file':''),g?g.section:'',g?g.range:'',...types.map(t=>ct[t]||0),...zones.map(z=>cz[z]||0),rs.length];});
+  const ct=count(rows,'structure'),cz=count(rows,'zone');
+  const tot=['Total','','','',...types.map(t=>ct[t]||0),...zones.map(z=>cz[z]||0),rows.length];
+  const withS=ids.filter(id=>id&&by[id].length).length,empty=ids.filter(id=>by[id].length===0).length;
+  const num=i=>i>=4;
+  const html=`<p class="sub" style="margin:10px 14px">${withS} grids have structures${GRIDS?` (out of ${GRIDS.length} grids in the 2×2 km grid)`:''}${includeEmpty?` · ${empty} grids with no structures listed in red`:''}. Click a Grid ID to filter the site to that grid.</p>
+   <table><thead><tr>${head.map((h,i)=>`<th class="${num(i)?'n':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr${r.at(-1)===0?' style="color:#b91c1c"':''}>${r.map((v,i)=>`<td class="${num(i)?'n':''}">${i===0&&v!=='Not entered'&&r.at(-1)>0?`<a href="#" data-grid="${esc(v)}">${esc(v)}</a>`:(num(i)&&!v?'<span class="sub">0</span>':esc(v))}</td>`).join('')}</tr>`).join('')}<tr class="tot">${tot.map((v,i)=>`<td class="${num(i)?'n':''}">${esc(v)}</td>`).join('')}</tr></tbody></table>`;
+  const cell=v=>/[",\n]/.test(String(v))?`"${String(v).replace(/"/g,'""')}"`:v;
+  return {html,csv:[head,...body,tot].map(r=>r.map(cell).join(',')).join('\n')};
+}
+async function renderReports(){
+  const k=$('groupBy').value;$('gridAllWrap').style.display=k==='grid'?'inline-flex':'none';
+  if(k==='grid'){if(!view.length){$('rep').innerHTML='<div class="state"><strong>No structures match these filters</strong></div>';$('repCharts').innerHTML='';return;}
+    $('rep').innerHTML='<div class="state"><div class="spin"></div>Preparing grid report…</div>';const t=await gridReport(view,$('gridAll').checked);
+    if($('groupBy').value!=='grid')return;$('rep').innerHTML=t.html;lastCSV=t.csv;
+    $('repCharts').innerHTML=`<div class="card w12"><h3>Top 30 grids by number of structures <small>· coloured by structure type</small></h3>${hbars('grid',view,{limit:30})}</div>`;return;}
   if(!view.length){$('rep').innerHTML='<div class="state"><strong>No structures match these filters</strong></div>';$('repCharts').innerHTML='';return;}
   const t=reportTable(k,view);$('rep').innerHTML=t.html;lastCSV=t.csv;
   $('repCharts').innerHTML=k==='kml'?'':`<div class="card w12"><h3>Structures by ${esc((LABEL[k]||k).toLowerCase())} <small>· coloured by structure type</small></h3>${k==='year'?columns(byYear(view)):k==='month'?columns(MONTHS.map((m,i)=>[m.slice(0,3),view.filter(r=>r._d?.m===i+1)])):hbars(k,view,{limit:k==='beat'||k==='compt'?40:0})}</div>
@@ -621,6 +647,8 @@ function renderReports(){
 }
 
 /* ---------- detailed (printable) report ---------- */
+let docGrid='';
+async function renderDocGrid(){const t=await gridReport(view,false);docGrid=t.html.replace(/<a href="#" data-grid="[^"]*">([^<]*)<\/a>/g,'$1').replace(/ Click a Grid ID to filter the site to that grid\./,'');}
 function renderDoc(){
   const now=new Date().toLocaleString('en-IN',{dateStyle:'long',timeStyle:'short'});
   const fl=[...FILTERS.filter(([k])=>sel[k]).map(([k,l])=>`${l}: ${labels[k][sel[k]]}`),...(q?[`Search: ${q}`]:[]),...(geoSel?[`Inside: ${geoSel.name}`]:[])];
@@ -630,7 +658,7 @@ function renderDoc(){
   $('doc').innerHTML=`<div class="dh"><img src="${document.querySelector('.brand img').src}" alt=""><img class="atr" src="${document.querySelector('.brand img.atr').src}" alt=""><div><h2>Amrabad Tiger Reserve</h2><div style="font-size:17px">Watergrid structures report</div></div></div>
    <div class="meta">Prepared ${esc(now)} · Source: Google Sheet “watergrid”, tab “${esc(CONFIG.sheetName)}” (${esc(srcText)})<br>Filters: ${fl.length?esc(fl.join(' · ')):'none (all records)'}</div>
    ${view.length?`<div class="kpis"><div>Structures<b>${fmtN(view.length)}</b></div>${typeOrder.filter(n=>ct[n]).map(n=>`<div>${esc(lab('structure',n))}<b>${ct[n]}</b></div>`).join('')}<div>Ranges / beats<b>${d('range')} / ${d('beat')}</b></div><div>Compartments<b>${d('compt')}</b></div></div>
-   ${sec('By division','division')}${sec('By range','range')}${sec('By section','section')}${sec('By year (sheet “Year”)','year')}${sec('By month of photo','month')}${sec('By scheme','scheme')}${kmlLayers.some(l=>l.visible&&l.polys.length)?sec('By KML area','kml'):''}${list}${$('incPh').checked?`<h3>Structure photos (${view.filter(r=>pid(r)).length})</h3>${photoState==='blocked'?`<p class="meta">${blockedNote}</p>`:'<p class="meta">Let all photos finish loading before printing.</p>'}<div class="gal">${view.filter(r=>pid(r)).map(r=>card(r,300,true)).join('')}</div>`:''}`:'<p><b>No structures match the selected filters.</b></p>'}
+   ${sec('By division','division')}${sec('By range','range')}${sec('By section','section')}${sec('By year (sheet “Year”)','year')}${sec('By month of photo','month')}${sec('By scheme','scheme')}${docGrid?`<h3>By grid (2×2 km)</h3>${docGrid}`:''}${kmlLayers.some(l=>l.visible&&l.polys.length)?sec('By KML area','kml'):''}${list}${$('incPh').checked?`<h3>Structure photos (${view.filter(r=>pid(r)).length})</h3>${photoState==='blocked'?`<p class="meta">${blockedNote}</p>`:'<p class="meta">Let all photos finish loading before printing.</p>'}<div class="gal">${view.filter(r=>pid(r)).map(r=>card(r,300,true)).join('')}</div>`:''}`:'<p><b>No structures match the selected filters.</b></p>'}
    <p class="meta">Counts are calculated from the records in the sheet. Spelling variants of the same name are counted together. Month is taken from the photo date.</p>`;
 }
 
@@ -944,7 +972,7 @@ $('bndNames').addEventListener('change',bndLabelsDraw);
 
 /* ---------- 2x2 km grid boxes ---------- */
 let GRIDS=null,gridLayer=null,gridLoading=false;
-async function loadGrids(){if(GRIDS||gridLoading)return;gridLoading=true;$('gridMsg').textContent='Loading grid boxes…';
+async function loadGrids(){if(GRIDS)return;if(gridLoading){for(let i=0;i<40&&!GRIDS;i++)await new Promise(r=>setTimeout(r,250));return;}gridLoading=true;$('gridMsg').textContent='Loading grid boxes…';
   try{const r=await fetch(CONFIG.gridUrl);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();
     GRIDS=j.grids.map(g=>({id:String(g[0]).trim(),beat:g[1],section:g[2],range:g[3],division:g[4],block:g[5],area:g[6],ll:[[g[7][1],g[7][0]],[g[7][3],g[7][2]],[g[7][5],g[7][4]],[g[7][7],g[7][6]]]}));
   }catch(e){$('gridMsg').textContent='Grid boxes could not be loaded ('+e.message+').';gridLoading=false;return;}
@@ -1059,7 +1087,7 @@ $('kmlOut').addEventListener('click',()=>{const n=view.filter(r=>r._geo).length;
     $('kmlOutMsg').textContent=`${n} structures saved to the KML file.`;}catch(e){$('kmlOutMsg').textContent='Download was blocked here; use the hosted site.';}});
 $('earthView').addEventListener('click',()=>{if(!map)return;const c=map.getCenter();const b=map.getBounds();const w=b.getNorthEast().distanceTo(b.getSouthWest());$('earthView').href=earthUrl(c.lat,c.lng,Math.max(300,w*1.2),false);});
 $('fit').addEventListener('click',()=>{fitPending=true;renderMap();});
-$('groupBy').addEventListener('change',renderReports);
+$('groupBy').addEventListener('change',renderReports);$('gridAll').addEventListener('change',renderReports);
 $('incList').addEventListener('change',renderDoc);$('incPh').addEventListener('change',renderDoc);
 $('reload').addEventListener('click',load);
 $('print').addEventListener('click',()=>{try{window.print();$('printMsg').textContent='If no print window opened, use your browser’s menu (Print) or open the hosted site.';}catch(e){$('printMsg').textContent='Printing is blocked here — open the hosted site to print.';}});
