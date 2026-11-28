@@ -344,6 +344,11 @@ body.adding .fbar,body.adding .status{display:none}
    <label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" id="incPh" style="width:20px;height:20px"> Include structure photos</label>
    <span class="sub" id="printMsg"></span>
   </div>
+  <div class="noprint card" style="margin-top:12px">
+   <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center"><b>Sections to include</b>
+    <button class="btn" type="button" id="secAll" style="min-height:34px">Select all</button><button class="btn" type="button" id="secNone" style="min-height:34px">Clear all</button></div>
+   <div id="secOpts" style="display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:8px"></div>
+  </div>
   <div class="doc" id="doc"></div>
  </section>
 
@@ -647,6 +652,14 @@ async function renderReports(){
 }
 
 /* ---------- detailed (printable) report ---------- */
+const DOC_SECS=[{k:'division',t:'By division'},{k:'range',t:'By range'},{k:'section',t:'By section'},{k:'beat',t:'By beat'},{k:'compt',t:'By compartment (Compt. No)'},{k:'grid',t:'By grid (2×2 km)'},{k:'year',t:'By year (sheet “Year”)'},{k:'month',t:'By month of photo'},{k:'scheme',t:'By scheme'},{k:'kml',t:'By uploaded KML area'}];
+let docSel={division:1,range:1,section:1,grid:1,year:1,month:1,scheme:1,kml:1};
+try{const v=JSON.parse(localStorage.getItem('atr-wg-doc')||'null');if(v)docSel=v;}catch(e){}
+$('secOpts').innerHTML=DOC_SECS.map((d,i)=>`<label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" data-sec="${d.k}" style="width:20px;height:20px"${docSel[d.k]?' checked':''}> ${i+1}. ${d.t}</label>`).join('');
+const docSave=()=>{try{localStorage.setItem('atr-wg-doc',JSON.stringify(docSel));}catch(e){}};
+$('secOpts').addEventListener('change',e=>{const k=e.target.dataset.sec;if(!k)return;if(e.target.checked)docSel[k]=1;else delete docSel[k];docSave();renderDoc();});
+$('secAll').addEventListener('click',()=>{DOC_SECS.forEach(d=>docSel[d.k]=1);document.querySelectorAll('[data-sec]').forEach(c=>c.checked=true);docSave();renderDoc();});
+$('secNone').addEventListener('click',()=>{docSel={};document.querySelectorAll('[data-sec]').forEach(c=>c.checked=false);docSave();renderDoc();});
 let docGrid='';
 async function renderDocGrid(){const t=await gridReport(view,false);docGrid=t.html.replace(/<a href="#" data-grid="[^"]*">([^<]*)<\/a>/g,'$1').replace(/ Click a Grid ID to filter the site to that grid\./,'');}
 function renderDoc(){
@@ -658,7 +671,7 @@ function renderDoc(){
   $('doc').innerHTML=`<div class="dh"><img src="${document.querySelector('.brand img').src}" alt=""><img class="atr" src="${document.querySelector('.brand img.atr').src}" alt=""><div><h2>Amrabad Tiger Reserve</h2><div style="font-size:17px">Watergrid structures report</div></div></div>
    <div class="meta">Prepared ${esc(now)} · Source: Google Sheet “watergrid”, tab “${esc(CONFIG.sheetName)}” (${esc(srcText)})<br>Filters: ${fl.length?esc(fl.join(' · ')):'none (all records)'}</div>
    ${view.length?`<div class="kpis"><div>Structures<b>${fmtN(view.length)}</b></div>${typeOrder.filter(n=>ct[n]).map(n=>`<div>${esc(lab('structure',n))}<b>${ct[n]}</b></div>`).join('')}<div>Ranges / beats<b>${d('range')} / ${d('beat')}</b></div><div>Compartments<b>${d('compt')}</b></div></div>
-   ${sec('By division','division')}${sec('By range','range')}${sec('By section','section')}${sec('By year (sheet “Year”)','year')}${sec('By month of photo','month')}${sec('By scheme','scheme')}${docGrid?`<h3>By grid (2×2 km)</h3>${docGrid}`:''}${kmlLayers.some(l=>l.visible&&l.polys.length)?sec('By KML area','kml'):''}${list}${$('incPh').checked?`<h3>Structure photos (${view.filter(r=>pid(r)).length})</h3>${photoState==='blocked'?`<p class="meta">${blockedNote}</p>`:'<p class="meta">Let all photos finish loading before printing.</p>'}<div class="gal">${view.filter(r=>pid(r)).map(r=>card(r,300,true)).join('')}</div>`:''}`:'<p><b>No structures match the selected filters.</b></p>'}
+   ${DOC_SECS.filter(d=>docSel[d.k]).map((d,i)=>d.k==='grid'?(docGrid?`<h3>${i+1}. ${d.t}</h3>${docGrid}`:`<h3>${i+1}. ${d.t}</h3><p class="meta">Preparing…</p>`):d.k==='kml'?(kmlLayers.some(l=>l.visible&&l.polys.length)?sec(`${i+1}. ${d.t}`,'kml'):''):sec(`${i+1}. ${d.t}`,d.k)).join('')}${list}${$('incPh').checked?`<h3>Structure photos (${view.filter(r=>pid(r)).length})</h3>${photoState==='blocked'?`<p class="meta">${blockedNote}</p>`:'<p class="meta">Let all photos finish loading before printing.</p>'}<div class="gal">${view.filter(r=>pid(r)).map(r=>card(r,300,true)).join('')}</div>`:''}`:'<p><b>No structures match the selected filters.</b></p>'}
    <p class="meta">Counts are calculated from the records in the sheet. Spelling variants of the same name are counted together. Month is taken from the photo date.</p>`;
 }
 
