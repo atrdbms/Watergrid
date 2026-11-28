@@ -199,7 +199,8 @@ body.adding .fbar,body.adding .status{display:none}
  table{font-size:14px}th,td{padding:7px 8px}
  .stack thead{display:none}.stack tr{display:grid;padding-block:8px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:2px 10px;padding-inline-start:8.5em;text-align:start;white-space:normal}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-7.5em;color:var(--muted);font-size:13px}.stack td:empty{display:none}
  #detail dl{grid-template-columns:7em 1fr}.hr{grid-template-columns:7em minmax(0,1fr) 3em}}
-@media print{header,nav,.fbar,.status,.noprint{display:none!important}body{background:#fff}.view{display:none!important}#v-detailed-report{display:block!important}.doc{border:0;margin:0;max-width:none;padding:0}.doc h3{break-after:avoid}.doc tr{break-inside:avoid}}
+#repPrint{display:none}
+@media print{header,nav,.fbar,.status,.noprint{display:none!important}body{background:#fff}.view{display:none!important}#v-detailed-report{display:block!important}body.prRep main{display:none!important}body.prRep #repPrint{display:block!important;margin:0}#repPrint table{font-size:12px}#repPrint th,#repPrint td{padding:4px 6px;white-space:normal}#repPrint a{color:inherit;text-decoration:none}@page{margin:12mm}.doc{border:0;margin:0;max-width:none;padding:0}.doc h3{break-after:avoid}.doc tr{break-inside:avoid}}
 /* Leaflet core styles (inlined) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
 .leaflet-container{overflow:hidden;-webkit-tap-highlight-color:transparent;font:12px/1.5 "Public Sans",system-ui,sans-serif;outline-offset:1px}
@@ -332,7 +333,7 @@ body.adding .fbar,body.adding .status{display:none}
    <div class="tools"><h2>Summary report</h2>
     <div class="g"><label for="groupBy" style="margin:0">Group by</label><select id="groupBy"><option value="division">Division</option><option value="range" selected>Range</option><option value="section">Section</option><option value="beat">Beat</option><option value="compt">Compt. No</option><option value="year">Year</option><option value="month">Month (photo)</option><option value="scheme">Scheme</option><option value="gridabs">Grid abstract (beat-wise)</option><option value="grid">Grid (2×2 km)</option><option value="kml">KML area</option></select>
     <label id="gridAllWrap" style="display:none;gap:6px;align-items:center;margin:0;font-weight:500"><input type="checkbox" id="gridAll" style="width:20px;height:20px"> Include grids with no structures</label>
-    <button class="btn" id="copyRep" type="button">Copy as CSV</button><span class="sub" id="repMsg"></span></div></div>
+    <button class="btn pri" id="printRep" type="button">Print / save as PDF</button><button class="btn" id="copyRep" type="button">Copy as CSV</button><span class="sub" id="repMsg"></span></div></div>
    <div class="scroll" id="rep"></div>
   </div>
   <div class="grid" id="repCharts"></div>
@@ -409,6 +410,7 @@ body.adding .fbar,body.adding .status{display:none}
  </section>
 </main>
 
+<div id="repPrint" class="doc" aria-hidden="true"></div>
 <div id="cam" role="dialog" aria-modal="true" aria-label="Camera"><video id="camV" autoplay playsinline muted></video>
 <div class="cbar"><button class="btn" type="button" id="camCancel">Cancel</button><button class="shoot" type="button" id="camShot" aria-label="Take photo"></button><button class="btn" type="button" id="camFlip">Switch camera</button></div><div id="camMsg"></div></div>
 <div id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer"><div class="top"><b id="lbT"></b><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="lbOpen" target="_blank" rel="noopener">Open in Drive</a><button class="btn" id="lbRec" type="button">Full record</button><button class="btn" id="lbMap" type="button">Show on map</button><a class="btn" id="lbEarth" target="_blank" rel="noopener">Google Earth</a><button class="btn" id="lbClose" type="button">Close</button></div></div>
@@ -1132,6 +1134,18 @@ $('fit').addEventListener('click',()=>{fitPending=true;renderMap();});
 $('groupBy').addEventListener('change',renderReports);$('gridAll').addEventListener('change',renderReports);
 $('incList').addEventListener('change',renderDoc);$('incPh').addEventListener('change',renderDoc);
 $('reload').addEventListener('click',load);
+$('printRep').addEventListener('click',()=>{
+  const opt=$('groupBy').selectedOptions[0].textContent;const now=new Date().toLocaleString('en-IN',{dateStyle:'long',timeStyle:'short'});
+  const fl=[...FILTERS.filter(([k])=>sel[k]).map(([k,l])=>`${l}: ${labels[k][sel[k]]}`),...(q?[`Search: ${q}`]:[]),...(geoSel?[`Inside: ${geoSel.name}`]:[]),...(gridSel?[`Grid ID: ${gridSel}`]:[])];
+  const charts=$('groupBy').value==='gridabs'||$('groupBy').value==='grid'?'':$('repCharts').innerHTML;
+  $('repPrint').innerHTML=`<div class="dh"><img src="${document.querySelector('.brand img').src}" alt=""><img class="atr" src="${document.querySelector('.brand img.atr').src}" alt=""><div><h2>Amrabad Tiger Reserve</h2><div style="font-size:17px">Watergrid structures – report by ${esc(opt.toLowerCase())}</div></div></div>
+   <div class="meta">Prepared ${esc(now)} · ${esc(srcText)}<br>Filters: ${fl.length?esc(fl.join(' · ')):'none (all records)'} · ${fmtN(view.length)} structures</div>
+   <h3>Report by ${esc(opt)}</h3>${$('rep').innerHTML}${charts?`<div style="break-before:page">${charts}</div>`:''}`;
+  document.body.classList.add('prRep');
+  const done=()=>{document.body.classList.remove('prRep');removeEventListener('afterprint',done);};addEventListener('afterprint',done);
+  try{window.print();}catch(e){$('repMsg').textContent='Printing is blocked here; open the hosted site.';done();}
+  setTimeout(()=>{if(!matchMedia('print').matches)done();},1500);
+});
 $('print').addEventListener('click',()=>{try{window.print();$('printMsg').textContent='If no print window opened, use your browser’s menu (Print) or open the hosted site.';}catch(e){$('printMsg').textContent='Printing is blocked here — open the hosted site to print.';}});
 const copy=async(text,el,n)=>{if(!text){el.textContent='Nothing to copy';return;}try{await navigator.clipboard.writeText(text);el.textContent=`Copied ${n} rows — paste into a spreadsheet`;}catch(e){el.textContent='Copy was blocked by the browser';}};
 $('copy').addEventListener('click',()=>{const cell=v=>/[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v;
